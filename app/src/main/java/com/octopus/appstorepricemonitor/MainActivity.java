@@ -82,28 +82,20 @@ public class MainActivity extends Activity {
                     insets.getSystemWindowInsetBottom() + pad);
             return insets;
         });
-        TextView title = new TextView(this); title.setText("价格哨兵"); title.setTextSize(26); title.setTextColor(0xFF172033); title.setTypeface(null, 1); root.addView(title);
         TextView intro = new TextView(this); intro.setText("监控 AppStorePrice.org 多地区订阅价格。首次成功检查只建立基线；之后仅在价格变化达到阈值时发送系统通知。建议允许本应用后台运行。"); intro.setTextSize(14); intro.setTextColor(0xFF5B6472); addSpace(root, 8); root.addView(intro);
-        TextView urlLabel = new TextView(this); urlLabel.setText("监控页面（每行一个链接）"); urlLabel.setTextSize(15); urlLabel.setTextColor(0xFF172033); addSpace(root, 20); root.addView(urlLabel);
 
         TextView thresholdLabel = new TextView(this); thresholdLabel.setText("重大变动阈值（百分比）"); thresholdLabel.setTextSize(15); thresholdLabel.setTextColor(0xFF172033); addSpace(root, 16); root.addView(thresholdLabel);
         thresholdInput = new EditText(this); thresholdInput.setInputType(8194); thresholdInput.setText("5"); thresholdInput.setHint("例如 5 表示 5%"); root.addView(thresholdInput, new LinearLayout.LayoutParams(-1, dp(52)));
-        TextView rankingLabel = new TextView(this); rankingLabel.setText("价格排行页面"); rankingLabel.setTextSize(15); rankingLabel.setTextColor(0xFF172033); addSpace(root, 16); root.addView(rankingLabel);
-        rankingUrlInput = new EditText(this);
-        rankingUrlInput.setSingleLine(true);
-        rankingUrlInput.setText(getSharedPreferences("price_ranking", MODE_PRIVATE).getString("url", "https://appstoreprice.org/zh/apps/6448311069?plan=1"));
-        rankingUrlInput.setHint("AppStorePrice.org 应用链接");
-        root.addView(rankingUrlInput, new LinearLayout.LayoutParams(-1, dp(52)));
-        Button ranking = new Button(this); ranking.setText("查看各地区价格排行"); styleButton(ranking, true); root.addView(ranking, new LinearLayout.LayoutParams(-1, dp(52)));
         Button save = new Button(this); save.setText("保存设置并启用每日监控"); styleButton(save, true); addSpace(root, 16); root.addView(save, new LinearLayout.LayoutParams(-1, dp(52)));
         Button check = new Button(this); check.setText("立即检查一次"); styleButton(check, false); root.addView(check, new LinearLayout.LayoutParams(-1, dp(52)));
-        Button update = new Button(this); update.setText("检查应用更新"); styleButton(update, false); root.addView(update, new LinearLayout.LayoutParams(-1, dp(52)));
+        String installedVersion = "未知";
+        try { PackageInfo installed = getPackageManager().getPackageInfo(getPackageName(), 0); if (installed.versionName != null) installedVersion = installed.versionName; } catch (Exception ignored) {}
+        Button update = new Button(this); update.setText("检查应用更新（v" + installedVersion + "）"); styleButton(update, false); root.addView(update, new LinearLayout.LayoutParams(-1, dp(52)));
         status = new TextView(this); status.setTextColor(0xFF5B6472); status.setTextSize(13); addSpace(root, 14); root.addView(status);
         TextView caveat = new TextView(this); caveat.setText("注意：数据通过网页表格解析，网站结构变化可能导致读取失败。价格以当地货币比较，人民币折算波动不会单独触发提醒。后台检查频率受 Android / 鸿蒙兼容环境调度与省电策略影响。"); caveat.setTextSize(12); caveat.setTextColor(0xFF777F8B); addSpace(root, 16); root.addView(caveat);
         setContentView(root);
         root.requestApplyInsets();
         save.setOnClickListener(v -> saveSettings());
-        ranking.setOnClickListener(v -> openPriceRanking());
         check.setOnClickListener(v -> { saveSettings(); WorkManager.getInstance(this).enqueue(OneTimeWorkRequest.from(PriceMonitorWorker.class)); status.setText("已提交立即检查任务。首次成功检查只会记录价格基线。"); });
         update.setOnClickListener(v -> checkForUpdates(true));
         updateStatus();
