@@ -695,28 +695,32 @@ public class PriceRankingActivity extends Activity {
                     rowSwipeDownX = event.getX();
                     rowSwipeDownY = event.getY();
                     rowSwipeTracking = false;
-                    return true;
+                    return false;
                 case MotionEvent.ACTION_MOVE:
                     float dx = event.getX() - rowSwipeDownX;
                     float dy = event.getY() - rowSwipeDownY;
-                    if (Math.abs(dx) > dp(12) && Math.abs(dx) > Math.abs(dy) * 1.25f) {
+                    if (Math.abs(dx) > dp(12) && Math.abs(dx) > Math.abs(dy) * 1.3f) {
                         rowSwipeTracking = true;
+                        view.getParent().requestDisallowInterceptTouchEvent(true);
+                        return true;
                     }
-                    return true;
+                    return rowSwipeTracking;
                 case MotionEvent.ACTION_UP:
                     float deltaX = event.getX() - rowSwipeDownX;
-                    float deltaY = event.getY() - rowSwipeDownY;
-                    if (rowSwipeTracking && Math.abs(deltaX) > dp(48) && Math.abs(deltaX) > Math.abs(deltaY)) {
+                    if (rowSwipeTracking && Math.abs(deltaX) > dp(48)) {
                         toggleFavoriteCountry(row.country);
                         renderFavoriteRows(row.country);
                     }
+                    boolean handled = rowSwipeTracking;
                     rowSwipeTracking = false;
-                    return true;
+                    view.getParent().requestDisallowInterceptTouchEvent(false);
+                    return handled;
                 case MotionEvent.ACTION_CANCEL:
                     rowSwipeTracking = false;
-                    return true;
+                    view.getParent().requestDisallowInterceptTouchEvent(false);
+                    return false;
             }
-            return true;
+            return rowSwipeTracking;
         });
 
         LinearLayout wrapper = new LinearLayout(this);
