@@ -419,11 +419,11 @@ public class PriceRankingActivity extends Activity {
         }
         String glyph = symbols[selectedSlot];
         floatingActiveIcon.setText(glyph);
-        floatingActiveIcon.setTranslationX(0);
+        floatingActiveIcon.setTranslationX(dp((selectedSlot - 2) * 72));
         floatingActiveIcon.setTranslationY(dp(40));
         floatingActiveIcon.setScaleX(0.58f);
         floatingActiveIcon.setScaleY(0.58f);
-        floatingActiveIcon.animate().translationY(0).scaleX(1f).scaleY(1f)
+        floatingActiveIcon.animate().translationX(0).translationY(0).scaleX(1f).scaleY(1f)
                 .setDuration(520).setInterpolator(new android.view.animation.OvershootInterpolator(1.35f)).start();
     }
 
