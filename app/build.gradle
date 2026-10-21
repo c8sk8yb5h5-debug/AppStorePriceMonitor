@@ -10,8 +10,8 @@ android {
         applicationId 'com.octopus.appstorepricemonitor'
         minSdk 26
         targetSdk 35
-        versionCode (System.getenv("APP_VERSION_CODE") ?: "1").toInteger()
-        versionName System.getenv("APP_VERSION_NAME") ?: "0.1.0"
+        versionCode Integer.parseInt(System.getenv("APP_VERSION_CODE") ?: "1")
+        versionName (System.getenv("APP_VERSION_NAME") ?: "0.1.0").toString()
     }
 
     if (hasReleaseKeystore) {
