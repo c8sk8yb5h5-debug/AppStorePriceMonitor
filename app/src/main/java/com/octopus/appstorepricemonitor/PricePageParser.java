@@ -25,7 +25,7 @@ public final class PricePageParser {
             String country = countryImage == null ? clean(cells.get(1).text()) : clean(countryImage.attr("alt"));
             if (country.isEmpty()) country = clean(cells.get(1).text());
             country = country.replaceAll("^(.{2,})(?:\\s+\\1)$", "$1");
-            String original = cellValue(cells.get(2));
+            String original = stripCurrencyCode(cellValue(cells.get(2)));
             String cny = cellValue(cells.get(3));
             String status = cells.size() > 4 ? clean(cells.get(4).text()) : "";
             if (country.isEmpty() || original.isEmpty() || cny.isEmpty()) continue;
@@ -38,6 +38,11 @@ public final class PricePageParser {
     private static String cellValue(Element cell) {
         Element button = cell.selectFirst("button");
         return clean(button == null ? cell.text() : button.text());
+    }
+
+    private static String stripCurrencyCode(String s) {
+        // Keep the local currency symbol and amount; remove trailing ISO currency codes such as IDR, INR, USD.
+        return clean(s).replaceAll("\\s+[A-Z]{3}$", "").trim();
     }
 
     private static String clean(String s) {
