@@ -2,13 +2,13 @@ name: Release Android APK
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version, for example 0.1.1 (without v)"
-        required: true
+        description: "Release version, for example 0.1.1 (without v). Leave blank to auto-generate."
+        required: false
         type: string
       notes:
         description: "Release notes"
@@ -48,21 +48,19 @@ jobs:
       - name: Configure release version
         shell: bash
         run: |
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
-            echo "RELEASE_TAG=v${VERSION}" >> "$GITHUB_ENV"
-            echo "RELEASE_NOTES=${{ inputs.notes }}" >> "$GITHUB_ENV"
-          else
-            echo "RELEASE_TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
-            echo "RELEASE_NOTES=Automated Android app release" >> "$GITHUB_ENV"
-          fi
+          VERSION="${{ inputs.version }}"
+          if [ -z "$VERSION" ]; then VERSION="0.1.${GITHUB_RUN_NUMBER}"; fi
+          echo "RELEASE_TAG=v${VERSION}" >> "$GITHUB_ENV"
+          NOTES="${{ inputs.notes }}"
+          if [ -z "$NOTES" ]; then NOTES="$(git log -1 --pretty=%s)"; fi
+          echo "RELEASE_NOTES=${NOTES}" >> "$GITHUB_ENV"
           if [ -z "${SIGNING_KEY_BASE64}" ] || [ -z "${SIGNING_STORE_PASSWORD}" ] || [ -z "${SIGNING_KEY_ALIAS}" ] || [ -z "${SIGNING_KEY_PASSWORD}" ]; then
             echo "Missing signing secrets. Configure SIGNING_KEY_BASE64, SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS, and SIGNING_KEY_PASSWORD in repository Actions secrets."
             exit 1
           fi
           echo "${SIGNING_KEY_BASE64}" | base64 --decode > app/release.keystore
-          VERSION="${GITHUB_REF_NAME#v}"
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then VERSION="${{ inputs.version }}"; fi
+          VERSION="${{ inputs.version }}"
+          if [ -z "$VERSION" ]; then VERSION="0.1.${GITHUB_RUN_NUMBER}"; fi
           echo "APP_VERSION_NAME=${VERSION}" >> "$GITHUB_ENV"
           echo "APP_VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
         env:
