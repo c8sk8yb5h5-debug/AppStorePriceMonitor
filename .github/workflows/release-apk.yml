@@ -69,7 +69,7 @@ jobs:
           SIGNING_KEY_BASE64: ${{ secrets.SIGNING_KEY_BASE64 }}
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
 
       - name: Build signed release APK
         env:
