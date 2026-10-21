@@ -1,0 +1,18 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.octopus.appstorepricemonitor'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.octopus.appstorepricemonitor'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+    }
+}
+
+dependencies {
+    implementation 'androidx.work:work-runtime:2.10.0'
+    implementation 'org.jsoup:jsoup:1.18.3'
+}
