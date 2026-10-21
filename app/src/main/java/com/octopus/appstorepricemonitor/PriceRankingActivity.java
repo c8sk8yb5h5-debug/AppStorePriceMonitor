@@ -109,6 +109,8 @@ public class PriceRankingActivity extends Activity {
         statusView.setTextColor(Color.rgb(58, 72, 45));
         statusView.setPadding(dp(4), dp(5), dp(4), dp(5));
         card.addView(statusView, new LinearLayout.LayoutParams(-1, dp(25)));
+        statusView.setContentDescription("点击刷新价格");
+        statusView.setOnClickListener(v -> loadPrices());
 
         HorizontalScrollView horizontal = new HorizontalScrollView(this);
         horizontal.setFillViewport(true);
@@ -126,6 +128,15 @@ public class PriceRankingActivity extends Activity {
         priceScroll.setFillViewport(false);
         priceScroll.addView(horizontal);
         card.addView(priceScroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        View cardNotch = new View(this);
+        GradientDrawable notchBg = new GradientDrawable();
+        notchBg.setShape(GradientDrawable.OVAL);
+        notchBg.setColor(Color.rgb(157, 174, 111));
+        cardNotch.setBackground(notchBg);
+        FrameLayout.LayoutParams notchLp = new FrameLayout.LayoutParams(dp(104), dp(100), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        notchLp.bottomMargin = dp(2);
+        contentFrame.addView(cardNotch, notchLp);
 
         bottomNav = makeBottomNavigation();
         FrameLayout.LayoutParams navLp = new FrameLayout.LayoutParams(-1, dp(112), Gravity.BOTTOM);
@@ -315,7 +326,7 @@ public class PriceRankingActivity extends Activity {
         item.setPadding(dp(6), 0, dp(6), 0);
         boolean lowest = row.status.contains("最低") || row.status.equalsIgnoreCase("Lowest");
         item.setBackgroundColor(lowest ? Color.rgb(177, 201, 137) : Color.rgb(157, 174, 111));
-        item.addView(cell(String.valueOf(row.rank), 0.55f, Gravity.CENTER, false, muted));
+        item.addView(cell(String.valueOf(row.rank), 0.55f, Gravity.CENTER, false, ink));
         item.addView(cell(row.country, 1.30f, Gravity.START, false, ink));
         item.addView(cell(row.originalPrice, 1.65f, Gravity.CENTER, false, ink));
         item.addView(cell(row.cnyPrice, 1.0f, Gravity.CENTER, true, lowest ? Color.rgb(18, 91, 44) : Color.BLACK));
