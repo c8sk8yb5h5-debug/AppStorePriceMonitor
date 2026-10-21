@@ -96,7 +96,7 @@ public class PriceRankingActivity extends Activity {
                 int[] order = {0, 1, 2, 3, 4};
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
-                float cx = w * (slot + 0.5f) / 5f;
+                float cx = dp(18) + (w - dp(36)) * (slot + 0.5f) / 5f;
                 float half = dp(42);
                 Path path = new Path();
                 path.moveTo(0, radius);
@@ -449,7 +449,7 @@ public class PriceRankingActivity extends Activity {
         navItems = new LinearLayout(this);
         navItems.setGravity(Gravity.CENTER);
         navItems.setOrientation(LinearLayout.HORIZONTAL);
-        navItems.setPadding(dp(2), dp(4), dp(2), dp(2));
+        navItems.setPadding(dp(18), dp(4), dp(18), dp(2));
         navItems.setBackgroundColor(Color.TRANSPARENT);
         navShape = new View(this) {
             private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -543,7 +543,7 @@ public class PriceRankingActivity extends Activity {
         final int targetSlot = selectedSlot;
         if (navShape != null) navShape.invalidate();
         floatingActiveIcon.post(() -> {
-            float centerX = bottomNav.getWidth() * (targetSlot + 0.5f) / 5f;
+            float centerX = dp(18) + (bottomNav.getWidth() - dp(36)) * (targetSlot + 0.5f) / 5f;
             float targetX = centerX - bottomNav.getWidth() / 2f;
             // Keep the bubble at its previous horizontal position, then lift it into the new slot.
             floatingActiveIcon.animate().cancel();
