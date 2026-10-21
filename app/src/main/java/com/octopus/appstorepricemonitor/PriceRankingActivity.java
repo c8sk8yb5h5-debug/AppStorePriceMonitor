@@ -107,7 +107,7 @@ public class PriceRankingActivity extends Activity {
         FrameLayout contentFrame = new FrameLayout(this);
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(12), dp(12), dp(12), dp(64));
+        card.setPadding(dp(12), 0, dp(12), dp(64));
         card.setBackground(new Drawable() {
             private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
             @Override public void draw(Canvas canvas) {
@@ -121,10 +121,11 @@ public class PriceRankingActivity extends Activity {
                 float cx = animatedNotchCenter >= 0 ? animatedNotchCenter : targetCx;
                 float half = dp(52);
                 Path path = new Path();
-                path.moveTo(0, radius);
-                path.quadTo(0, 0, radius, 0);
-                path.lineTo(w - radius, 0);
-                path.quadTo(w, 0, w, radius);
+                float headerOffset = dp(72);
+                path.moveTo(0, headerOffset + radius);
+                path.quadTo(0, headerOffset, radius, headerOffset);
+                path.lineTo(w - radius, headerOffset);
+                path.quadTo(w, headerOffset, w, headerOffset + radius);
                 float baseY = h - bulge;
                 path.lineTo(w, baseY - dp(30));
                 path.quadTo(w, baseY, w - dp(30), baseY);
@@ -148,13 +149,13 @@ public class PriceRankingActivity extends Activity {
 
         currentHeading = new TextView(this);
         currentHeading.setText(PRODUCT_NAMES[selectedProduct].toUpperCase());
-        currentHeading.setTextSize(26);
-        currentHeading.setTextColor(Color.WHITE);
-        currentHeading.setTypeface(Typeface.create("cursive", Typeface.NORMAL));
+        currentHeading.setTextSize(52);
+        currentHeading.setTextColor(Color.rgb(39, 55, 35));
+        currentHeading.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
         currentHeading.setGravity(Gravity.CENTER_VERTICAL);
         currentHeading.setSingleLine(true);
-        currentHeading.setPadding(dp(10), 0, 0, 0);
-        card.addView(currentHeading, new LinearLayout.LayoutParams(-1, dp(54)));
+        currentHeading.setPadding(dp(10), dp(2), 0, 0);
+        card.addView(currentHeading, new LinearLayout.LayoutParams(-1, dp(72)));
         View titleDivider = new View(this);
         titleDivider.setBackgroundColor(Color.rgb(177, 191, 137));
         card.addView(titleDivider, new LinearLayout.LayoutParams(-1, dp(1)));
@@ -167,7 +168,7 @@ public class PriceRankingActivity extends Activity {
         statusView.setTextSize(11);
         statusView.setTextColor(Color.rgb(58, 72, 45));
         statusView.setPadding(dp(4), dp(5), dp(4), dp(5));
-        card.addView(statusView, new LinearLayout.LayoutParams(-1, dp(25)));
+        card.addView(statusView, new LinearLayout.LayoutParams(-1, dp(0)));
         statusView.setContentDescription("点击刷新价格");
         statusView.setOnClickListener(v -> loadPrices(true));
 
@@ -947,7 +948,7 @@ public class PriceRankingActivity extends Activity {
         }
         if (selectedProduct == 4) showSettingsInCard(); else {
             rowsContainer.setBackgroundColor(Color.TRANSPARENT);
-            statusView.setVisibility(View.VISIBLE);
+            statusView.setVisibility(View.GONE);
             tableHeader.setVisibility(View.VISIBLE);
             priceScroll.setVisibility(View.VISIBLE);
             loadPrices(false);
