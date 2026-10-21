@@ -8,8 +8,8 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
+import android.view.WindowInsets;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -19,16 +19,28 @@ import org.jsoup.Jsoup;
 import java.util.List;
 
 public class PriceRankingActivity extends Activity {
+    private static final String PREFS = "price_ranking";
     private static final String DEFAULT_URL = "https://appstoreprice.org/zh/apps/6448311069?plan=1";
+    private static final String[] PRODUCT_NAMES = {"ChatGPT Go", "ChatGPT Plus", "Gemini AI Plus", "Gemini AI Pro"};
+    private static final String[] PRODUCT_URLS = {
+        "https://appstoreprice.org/zh/apps/6448311069?plan=1",
+        "https://appstoreprice.org/zh/apps/6448311069?plan=0",
+        "https://appstoreprice.org/zh/apps/6477489729?plan=1",
+        "https://appstoreprice.org/zh/apps/6477489729?plan=0"
+    };
+
     private LinearLayout rowsContainer;
+    private LinearLayout productTabs;
     private TextView statusView;
     private ProgressBar progress;
     private String currentUrl;
+    private int selectedProduct = 0;
 
     private final int ink = Color.rgb(27, 37, 56);
     private final int muted = Color.rgb(104, 117, 139);
     private final int line = Color.rgb(222, 229, 238);
     private final int page = Color.rgb(248, 250, 253);
+    private final int blue = Color.rgb(22, 138, 245);
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -42,26 +54,49 @@ public class PriceRankingActivity extends Activity {
 
         currentUrl = getIntent().getStringExtra("url");
         if (currentUrl == null || !currentUrl.startsWith("https://appstoreprice.org/zh/apps/")) {
-            currentUrl = getSharedPreferences("price_ranking", MODE_PRIVATE).getString("url", DEFAULT_URL);
+            currentUrl = getSharedPreferences(PREFS, MODE_PRIVATE).getString("url", DEFAULT_URL);
+        }
+        for (int i = 0; i < PRODUCT_URLS.length; i++) {
+            if (PRODUCT_URLS[i].equals(currentUrl)) selectedProduct = i;
         }
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(page);
+        // Android 15+/Harmony compatibility may lay content behind the system status bar.
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            int top = insets.getSystemWindowInsetTop();
+            int bottom = insets.getSystemWindowInsetBottom();
+            view.setPadding(0, top, 0, bottom);
+            return insets;
+        });
 
         LinearLayout toolbar = new LinearLayout(this);
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
         toolbar.setPadding(dp(10), dp(2), dp(10), dp(2));
-        Button settings = new Button(this);
+        TextView settings = new TextView(this);
         settings.setText("监控设置");
-        settings.setTextSize(13);
+        settings.setTextSize(14);
+        settings.setTextColor(ink);
+        settings.setGravity(Gravity.CENTER);
+        settings.setOnClickListener(v -> startActivity(new Intent(this, MainActivity.class)));
         toolbar.addView(settings, new LinearLayout.LayoutParams(0, dp(44), 1));
-        Button refresh = new Button(this);
-        refresh.setText("刷新");
-        refresh.setTextSize(13);
-        toolbar.addView(refresh, new LinearLayout.LayoutParams(dp(76), dp(44)));
+        TextView refresh = new TextView(this);
+        refresh.setText("刷新 ↻");
+        refresh.setTextSize(14);
+        refresh.setTextColor(ink);
+        refresh.setGravity(Gravity.CENTER);
+        refresh.setOnClickListener(v -> loadPrices());
+        toolbar.addView(refresh, new LinearLayout.LayoutParams(dp(82), dp(44)));
         root.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(48)));
+
+        productTabs = new LinearLayout(this);
+        productTabs.setOrientation(LinearLayout.VERTICAL);
+        productTabs.setPadding(dp(10), dp(2), dp(10), dp(7));
+        addProductTabRow(productTabs, 0, 1);
+        addProductTabRow(productTabs, 2, 3);
+        root.addView(productTabs, new LinearLayout.LayoutParams(-1, -2));
 
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
@@ -91,10 +126,69 @@ public class PriceRankingActivity extends Activity {
         scroll.addView(horizontal);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
-
-        settings.setOnClickListener(v -> startActivity(new Intent(this, MainActivity.class)));
-        refresh.setOnClickListener(v -> loadPrices());
+        root.requestApplyInsets();
+        renderProductTabs();
         loadPrices();
+    }
+
+    private void addProductTabRow(LinearLayout parent, int first, int second) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        TextView a = productButton(first);
+        TextView b = productButton(second);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(40), 1);
+        lp.setMargins(dp(3), dp(3), dp(3), dp(3));
+        row.addView(a, lp);
+        LinearLayout.LayoutParams lp2 = new LinearLayout.LayoutParams(0, dp(40), 1);
+        lp2.setMargins(dp(3), dp(3), dp(3), dp(3));
+        row.addView(b, lp2);
+        parent.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    private TextView productButton(int index) {
+        TextView button = new TextView(this);
+        button.setTag(index);
+        button.setText(PRODUCT_NAMES[index]);
+        button.setTextSize(13);
+        button.setGravity(Gravity.CENTER);
+        button.setMaxLines(1);
+        button.setOnClickListener(v -> {
+            int chosen = (Integer) v.getTag();
+            if (chosen == selectedProduct && PRODUCT_URLS[chosen].equals(currentUrl)) return;
+            selectedProduct = chosen;
+            currentUrl = PRODUCT_URLS[chosen];
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString("url", currentUrl).apply();
+            renderProductTabs();
+            loadPrices();
+        });
+        return button;
+    }
+
+    private void renderProductTabs() {
+        if (productTabs == null) return;
+        for (int r = 0; r < productTabs.getChildCount(); r++) {
+            View rowView = productTabs.getChildAt(r);
+            if (!(rowView instanceof LinearLayout)) continue;
+            LinearLayout row = (LinearLayout) rowView;
+            for (int c = 0; c < row.getChildCount(); c++) {
+                TextView button = (TextView) row.getChildAt(c);
+                int index = (Integer) button.getTag();
+                GradientDrawable bg = new GradientDrawable();
+                bg.setCornerRadius(dp(10));
+                if (index == selectedProduct) {
+                    bg.setColor(Color.rgb(226, 240, 255));
+                    bg.setStroke(dp(1), blue);
+                    button.setTextColor(blue);
+                    button.setTypeface(null, Typeface.BOLD);
+                } else {
+                    bg.setColor(Color.WHITE);
+                    bg.setStroke(dp(1), line);
+                    button.setTextColor(ink);
+                    button.setTypeface(null, Typeface.NORMAL);
+                }
+                button.setBackground(bg);
+            }
+        }
     }
 
     private View makeHeader() {
@@ -126,17 +220,19 @@ public class PriceRankingActivity extends Activity {
     }
 
     private void loadPrices() {
-        statusView.setText("正在更新价格数据…");
+        statusView.setText("正在更新 " + PRODUCT_NAMES[selectedProduct] + " 价格数据…");
         progress.setVisibility(View.VISIBLE);
         progress.setProgress(12);
         rowsContainer.removeAllViews();
+        final String requestedUrl = currentUrl;
         new Thread(() -> {
             try {
-                String html = Jsoup.connect(currentUrl)
+                String html = Jsoup.connect(requestedUrl)
                         .userAgent("Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124.0.0.0 Mobile Safari/537.36")
                         .timeout(20000).get().html();
                 List<PriceRow> prices = PricePageParser.parse(html);
                 runOnUiThread(() -> {
+                    if (isFinishing() || !requestedUrl.equals(currentUrl)) return;
                     progress.setVisibility(View.GONE);
                     rowsContainer.removeAllViews();
                     if (prices.isEmpty()) {
@@ -153,6 +249,7 @@ public class PriceRankingActivity extends Activity {
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
+                    if (isFinishing() || !requestedUrl.equals(currentUrl)) return;
                     progress.setVisibility(View.GONE);
                     statusView.setText("加载失败，请检查网络后点击刷新。");
                     TextView error = new TextView(this);
@@ -196,9 +293,7 @@ public class PriceRankingActivity extends Activity {
         return wrapper;
     }
 
-    @Override public void onBackPressed() {
-        super.onBackPressed();
-    }
+    @Override public void onBackPressed() { super.onBackPressed(); }
 
     private int dp(int value) {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
