@@ -12,7 +12,6 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Environment;
 import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import androidx.core.content.FileProvider;
 import java.io.File;
 import android.app.NotificationChannel;
