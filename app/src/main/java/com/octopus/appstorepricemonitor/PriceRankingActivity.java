@@ -247,7 +247,7 @@ public class PriceRankingActivity extends Activity {
         header.addView(cell("地区", 1.35f, Gravity.START, true, ink));
         header.addView(cell("原价", 1.65f, Gravity.CENTER, true, ink));
         header.addView(cell("CNY", 1.0f, Gravity.CENTER, true, ink));
-        header.addView(cell("状态", 0.75f, Gravity.CENTER, true, ink));
+        
         return header;
     }
 
@@ -314,23 +314,14 @@ public class PriceRankingActivity extends Activity {
         item.setGravity(Gravity.CENTER_VERTICAL);
         item.setPadding(dp(6), 0, dp(6), 0);
         boolean lowest = row.status.contains("最低") || row.status.equalsIgnoreCase("Lowest");
-        item.setBackgroundColor(lowest ? Color.rgb(241, 251, 246) : Color.WHITE);
+        item.setBackgroundColor(lowest ? Color.rgb(177, 201, 137) : Color.rgb(157, 174, 111));
         item.addView(cell(String.valueOf(row.rank), 0.55f, Gravity.CENTER, false, muted));
-        item.addView(cell(row.country, 1.35f, Gravity.START, false, ink));
-        item.addView(cell(row.originalPrice, 1.65f, Gravity.CENTER, false, muted));
-        item.addView(cell(row.cnyPrice, 1.0f, Gravity.CENTER, true, lowest ? Color.rgb(0, 158, 83) : ink));
-        TextView badge = cell(lowest ? "最低" : (row.status.contains("最高") || row.status.equalsIgnoreCase("Highest") ? "最高" : ""), 0.75f, Gravity.CENTER, true,
-                lowest ? Color.rgb(0, 145, 75) : muted);
-        if (lowest) {
-            GradientDrawable bg = new GradientDrawable();
-            bg.setColor(Color.rgb(215, 249, 229));
-            bg.setCornerRadius(dp(20));
-            badge.setBackground(bg);
-            badge.setPadding(dp(4), dp(4), dp(4), dp(4));
-        }
-        item.addView(badge);
+        item.addView(cell(row.country, 1.30f, Gravity.START, false, ink));
+        item.addView(cell(row.originalPrice, 1.65f, Gravity.CENTER, false, ink));
+        item.addView(cell(row.cnyPrice, 1.0f, Gravity.CENTER, true, lowest ? Color.rgb(18, 91, 44) : Color.BLACK));
+
         View divider = new View(this);
-        divider.setBackgroundColor(line);
+        divider.setBackgroundColor(Color.rgb(135, 154, 98));
         LinearLayout wrapper = new LinearLayout(this);
         wrapper.setOrientation(LinearLayout.VERTICAL);
         wrapper.addView(item, new LinearLayout.LayoutParams(-1, -2));
