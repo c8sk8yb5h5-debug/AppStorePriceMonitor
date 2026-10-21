@@ -1,3 +1,4 @@
 <resources>
     <color name="price_icon_blue">#168AF5</color>
+    <color name="price_icon_white">#FFFFFF</color>
 </resources>
