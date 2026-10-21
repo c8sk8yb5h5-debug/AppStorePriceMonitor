@@ -3,6 +3,9 @@ package com.octopus.appstorepricemonitor;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -38,6 +41,8 @@ public class PriceRankingActivity extends Activity {
     private LinearLayout navItems;
     private TextView floatingActiveIcon;
     private TextView currentHeading;
+    private View cardNotch;
+    private View navShape;
     private ScrollView priceScroll;
     private GestureDetector swipeDetector;
     private boolean changingProduct = false;
@@ -129,7 +134,7 @@ public class PriceRankingActivity extends Activity {
         priceScroll.addView(horizontal);
         card.addView(priceScroll, new LinearLayout.LayoutParams(-1, 0, 1));
 
-        View cardNotch = new View(this);
+        cardNotch = new View(this);
         GradientDrawable notchBg = new GradientDrawable();
         notchBg.setShape(GradientDrawable.OVAL);
         notchBg.setColor(Color.rgb(157, 174, 111));
@@ -351,10 +356,37 @@ public class PriceRankingActivity extends Activity {
         navItems.setGravity(Gravity.CENTER);
         navItems.setOrientation(LinearLayout.HORIZONTAL);
         navItems.setPadding(dp(2), dp(4), dp(2), dp(2));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.BLACK);
-        bg.setCornerRadius(dp(42));
-        navItems.setBackground(bg);
+        navItems.setBackgroundColor(Color.TRANSPARENT);
+        navShape = new View(this) {
+            private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            @Override protected void onDraw(Canvas canvas) {
+                super.onDraw(canvas);
+                float w = getWidth(), h = getHeight();
+                if (w <= 0 || h <= 0) return;
+                int[] order = {1, 0, 2, 3, -1};
+                int slot = 0;
+                for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
+                float cx = w * (slot + 0.5f) / 5f;
+                float notch = dp(35), top = dp(13), r = dp(36);
+                Path path = new Path();
+                path.moveTo(0, top + r);
+                path.quadTo(0, top, r, top);
+                path.lineTo(Math.max(r, cx - notch), top);
+                path.cubicTo(cx - notch * 0.35f, top, cx - notch * 0.65f, h - dp(5), cx, h - dp(5));
+                path.cubicTo(cx + notch * 0.65f, h - dp(5), cx + notch * 0.35f, top, cx + notch, top);
+                path.lineTo(w - r, top);
+                path.quadTo(w, top, w, top + r);
+                path.lineTo(w, h - r);
+                path.quadTo(w, h, w - r, h);
+                path.lineTo(r, h);
+                path.quadTo(0, h, 0, h - r);
+                path.close();
+                paint.setColor(Color.BLACK);
+                canvas.drawPath(path, paint);
+            }
+        };
+        FrameLayout.LayoutParams shapeLp = new FrameLayout.LayoutParams(-1, dp(70), Gravity.BOTTOM);
+        shell.addView(navShape, shapeLp);
         FrameLayout.LayoutParams barLp = new FrameLayout.LayoutParams(-1, dp(70), Gravity.BOTTOM);
         shell.addView(navItems, barLp);
 
@@ -419,12 +451,28 @@ public class PriceRankingActivity extends Activity {
         }
         String glyph = symbols[selectedSlot];
         floatingActiveIcon.setText(glyph);
-        floatingActiveIcon.setTranslationX(dp((selectedSlot - 2) * 72));
-        floatingActiveIcon.setTranslationY(dp(40));
-        floatingActiveIcon.setScaleX(0.58f);
-        floatingActiveIcon.setScaleY(0.58f);
-        floatingActiveIcon.animate().translationX(0).translationY(0).scaleX(1f).scaleY(1f)
-                .setDuration(520).setInterpolator(new android.view.animation.OvershootInterpolator(1.35f)).start();
+        final int targetSlot = selectedSlot;
+        if (navShape != null) navShape.invalidate();
+        if (cardNotch != null) {
+            cardNotch.post(() -> {
+                int frameWidth = ((View) cardNotch.getParent()).getWidth();
+                float centerX = frameWidth * (targetSlot + 0.5f) / 5f;
+                FrameLayout.LayoutParams notchParams = (FrameLayout.LayoutParams) cardNotch.getLayoutParams();
+                notchParams.gravity = Gravity.BOTTOM | Gravity.LEFT;
+                notchParams.leftMargin = Math.round(centerX - dp(52));
+                cardNotch.setLayoutParams(notchParams);
+            });
+        }
+        floatingActiveIcon.post(() -> {
+            float centerX = bottomNav.getWidth() * (targetSlot + 0.5f) / 5f;
+            float offsetX = centerX - bottomNav.getWidth() / 2f;
+            floatingActiveIcon.setTranslationX(offsetX);
+            floatingActiveIcon.setTranslationY(dp(40));
+            floatingActiveIcon.setScaleX(0.58f);
+            floatingActiveIcon.setScaleY(0.58f);
+            floatingActiveIcon.animate().translationX(offsetX).translationY(0).scaleX(1f).scaleY(1f)
+                    .setDuration(520).setInterpolator(new android.view.animation.OvershootInterpolator(1.35f)).start();
+        });
     }
 
     private void selectProduct(int index, int direction) {
