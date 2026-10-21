@@ -7,6 +7,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.HorizontalScrollView;
@@ -31,6 +33,10 @@ public class PriceRankingActivity extends Activity {
 
     private LinearLayout rowsContainer;
     private LinearLayout productTabs;
+    private LinearLayout bottomNav;
+    private ScrollView priceScroll;
+    private GestureDetector swipeDetector;
+    private boolean changingProduct = false;
     private TextView statusView;
     private ProgressBar progress;
     private String currentUrl;
@@ -92,7 +98,6 @@ public class PriceRankingActivity extends Activity {
         productTabs.setPadding(0, dp(4), 0, dp(10));
         productTabs.addView(makeProductRow(true), new LinearLayout.LayoutParams(-1, dp(58)));
         productTabs.addView(makeProductRow(false), new LinearLayout.LayoutParams(-1, dp(58)));
-        root.addView(productTabs, new LinearLayout.LayoutParams(-1, -2));
 
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
@@ -116,13 +121,29 @@ public class PriceRankingActivity extends Activity {
         rowsContainer.setOrientation(LinearLayout.VERTICAL);
         table.addView(rowsContainer, new LinearLayout.LayoutParams(-1, -2));
         horizontal.addView(table);
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(false);
-        scroll.addView(horizontal);
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        priceScroll = new ScrollView(this);
+        priceScroll.setFillViewport(false);
+        priceScroll.addView(horizontal);
+        root.addView(priceScroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        bottomNav = makeBottomNavigation();
+        root.addView(bottomNav, new LinearLayout.LayoutParams(-1, dp(74)));
+        swipeDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override public boolean onDown(MotionEvent e) { return true; }
+            @Override public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                if (e1 == null || e2 == null) return false;
+                float dx = e2.getX() - e1.getX();
+                float dy = e2.getY() - e1.getY();
+                if (Math.abs(dx) > dp(65) && Math.abs(dx) > Math.abs(dy) * 1.25f && Math.abs(velocityX) > dp(120)) {
+                    selectProduct((selectedProduct + (dx < 0 ? 1 : PRODUCT_URLS.length - 1)) % PRODUCT_URLS.length, dx < 0 ? 1 : -1);
+                    return true;
+                }
+                return false;
+            }
+        });
         setContentView(root);
         root.requestApplyInsets();
         renderProductTabs();
+        renderBottomNavigation();
         loadPrices();
     }
 
@@ -242,7 +263,6 @@ public class PriceRankingActivity extends Activity {
         statusView.setText("正在更新 " + PRODUCT_NAMES[selectedProduct] + " 价格数据…");
         progress.setVisibility(View.VISIBLE);
         progress.setProgress(12);
-        rowsContainer.removeAllViews();
         final String requestedUrl = currentUrl;
         new Thread(() -> {
             try {
@@ -310,6 +330,83 @@ public class PriceRankingActivity extends Activity {
         wrapper.addView(item, new LinearLayout.LayoutParams(-1, -2));
         wrapper.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
         return wrapper;
+    }
+
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        if (swipeDetector != null) swipeDetector.onTouchEvent(event);
+        return super.dispatchTouchEvent(event);
+    }
+
+    private LinearLayout makeBottomNavigation() {
+        LinearLayout shell = new LinearLayout(this);
+        shell.setGravity(Gravity.CENTER);
+        shell.setPadding(dp(2), dp(8), dp(2), dp(4));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.BLACK);
+        bg.setCornerRadius(dp(40));
+        shell.setBackground(bg);
+        String[] symbols = {"✳", "G", "✦", "✧", "⚙"};
+        String[] descriptions = {"ChatGPT Plus", "ChatGPT Go", "Gemini Pro", "Gemini Plus", "设置"};
+        int[] productIndex = {1, 0, 2, 3, -1};
+        for (int i = 0; i < symbols.length; i++) {
+            final int index = productIndex[i];
+            LinearLayout item = new LinearLayout(this);
+            item.setGravity(Gravity.CENTER);
+            item.setOrientation(LinearLayout.VERTICAL);
+            TextView icon = new TextView(this);
+            icon.setText(symbols[i]);
+            icon.setTextSize(i == 1 ? 18 : 22);
+            icon.setGravity(Gravity.CENTER);
+            icon.setContentDescription(descriptions[i]);
+            item.addView(icon, new LinearLayout.LayoutParams(-1, dp(42)));
+            View dot = new View(this);
+            item.addView(dot, new LinearLayout.LayoutParams(dp(4), dp(4)));
+            item.setOnClickListener(v -> {
+                if (index < 0) {
+                    startActivity(new Intent(this, MainActivity.class));
+                    overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                } else {
+                    selectProduct(index, index >= selectedProduct ? 1 : -1);
+                }
+            });
+            shell.addView(item, new LinearLayout.LayoutParams(0, -1, 1));
+        }
+        return shell;
+    }
+
+    private void renderBottomNavigation() {
+        if (bottomNav == null) return;
+        int[] productIndex = {1, 0, 2, 3, -1};
+        for (int i = 0; i < bottomNav.getChildCount(); i++) {
+            LinearLayout item = (LinearLayout) bottomNav.getChildAt(i);
+            TextView icon = (TextView) item.getChildAt(0);
+            boolean selected = productIndex[i] == selectedProduct;
+            icon.setTextColor(selected ? Color.rgb(255, 220, 120) : Color.rgb(205, 208, 200));
+            item.animate().scaleX(selected ? 1.16f : 1f).scaleY(selected ? 1.16f : 1f)
+                    .translationY(selected ? -dp(3) : 0).setDuration(220).start();
+            View dot = item.getChildAt(1);
+            dot.setBackgroundColor(selected ? Color.rgb(255, 220, 120) : Color.TRANSPARENT);
+        }
+    }
+
+    private void selectProduct(int index, int direction) {
+        if (index < 0 || index >= PRODUCT_URLS.length || index == selectedProduct || changingProduct) return;
+        changingProduct = true;
+        int width = Math.max(priceScroll.getWidth(), dp(280));
+        priceScroll.animate().translationX(-direction * width * 0.28f).alpha(0.55f)
+                .setDuration(150).withEndAction(() -> {
+                    selectedProduct = index;
+                    currentUrl = PRODUCT_URLS[index];
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString("url", currentUrl).apply();
+                    renderProductTabs();
+                    renderBottomNavigation();
+                    priceScroll.setTranslationX(direction * width * 0.28f);
+                    priceScroll.setAlpha(0.55f);
+                    loadPrices();
+                    priceScroll.animate().translationX(0).alpha(1f).setDuration(260)
+                            .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                            .withEndAction(() -> changingProduct = false).start();
+                }).start();
     }
 
     @Override public void onBackPressed() { super.onBackPressed(); }
