@@ -26,6 +26,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
+import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.widget.HorizontalScrollView;
 import android.widget.FrameLayout;
@@ -38,6 +39,9 @@ import java.util.List;
 
 public class PriceRankingActivity extends Activity {
     private static final String PREFS = "price_ranking";
+    private static final String FAVORITES_KEY = "favorite_countries";
+    private float rowSwipeDownX, rowSwipeDownY;
+    private boolean rowSwipeTracking;
     private static final String DEFAULT_URL = "https://appstoreprice.org/zh/apps/6448311069?plan=1";
     // The four plan URLs are kept in one place so they can be adjusted if the source site changes its plan IDs.
     private static final String[] PRODUCT_NAMES = {"ChatGPT Plus", "ChatGPT Go", "Gemini AI Pro", "Gemini AI Plus", "设置"};
@@ -671,21 +675,94 @@ public class PriceRankingActivity extends Activity {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.HORIZONTAL);
         item.setGravity(Gravity.CENTER_VERTICAL);
-        item.setPadding(dp(6), 0, dp(6), 0);
-        boolean lowest = row.status.contains("最低") || row.status.equalsIgnoreCase("Lowest");
-        item.setBackgroundColor(lowest ? Color.rgb(177, 201, 137) : Color.rgb(157, 174, 111));
+        item.setPadding(dp(10), 0, dp(10), 0);
+
+        boolean favorite = isFavoriteCountry(row.country);
+        GradientDrawable capsule = new GradientDrawable();
+        capsule.setColor(favorite ? Color.rgb(255, 220, 122) : Color.TRANSPARENT);
+        capsule.setCornerRadius(dp(48));
+        if (favorite) capsule.setStroke(dp(1), Color.rgb(105, 124, 70));
+        item.setBackground(capsule);
+
         item.addView(cell(String.valueOf(row.rank), 0.55f, Gravity.CENTER, false, ink));
         item.addView(cell(row.country, 1.30f, Gravity.START, false, ink));
         item.addView(cell(row.originalPrice, 1.65f, Gravity.CENTER, false, ink));
-        item.addView(cell(row.cnyPrice, 1.0f, Gravity.CENTER, true, lowest ? Color.rgb(18, 91, 44) : Color.BLACK));
+        item.addView(cell(row.cnyPrice, 1.0f, Gravity.CENTER, false, ink));
 
-        View divider = new View(this);
-        divider.setBackgroundColor(Color.rgb(135, 154, 98));
+        item.setOnTouchListener((view, event) -> {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    rowSwipeDownX = event.getX();
+                    rowSwipeDownY = event.getY();
+                    rowSwipeTracking = false;
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    float dx = event.getX() - rowSwipeDownX;
+                    float dy = event.getY() - rowSwipeDownY;
+                    if (Math.abs(dx) > dp(12) && Math.abs(dx) > Math.abs(dy) * 1.25f) {
+                        rowSwipeTracking = true;
+                    }
+                    return true;
+                case MotionEvent.ACTION_UP:
+                    float deltaX = event.getX() - rowSwipeDownX;
+                    float deltaY = event.getY() - rowSwipeDownY;
+                    if (rowSwipeTracking && Math.abs(deltaX) > dp(48) && Math.abs(deltaX) > Math.abs(deltaY)) {
+                        toggleFavoriteCountry(row.country);
+                        renderFavoriteRows(row.country);
+                    }
+                    rowSwipeTracking = false;
+                    return true;
+                case MotionEvent.ACTION_CANCEL:
+                    rowSwipeTracking = false;
+                    return true;
+            }
+            return true;
+        });
+
         LinearLayout wrapper = new LinearLayout(this);
         wrapper.setOrientation(LinearLayout.VERTICAL);
+        wrapper.setPadding(dp(4), dp(2), dp(4), dp(2));
         wrapper.addView(item, new LinearLayout.LayoutParams(-1, -2));
+        View divider = new View(this);
+        divider.setBackgroundColor(Color.rgb(135, 154, 98));
         wrapper.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
         return wrapper;
+    }
+
+    private java.util.Set<String> getFavoriteCountries() {
+        return new java.util.HashSet<>(getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getStringSet(FAVORITES_KEY, java.util.Collections.emptySet()));
+    }
+
+    private boolean isFavoriteCountry(String country) {
+        return getFavoriteCountries().contains(country == null ? "" : country.trim());
+    }
+
+    private void toggleFavoriteCountry(String country) {
+        if (country == null || country.trim().isEmpty()) return;
+        java.util.Set<String> favorites = getFavoriteCountries();
+        String key = country.trim();
+        if (!favorites.add(key)) favorites.remove(key);
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putStringSet(FAVORITES_KEY, favorites).apply();
+    }
+
+    private void renderFavoriteRows(String country) {
+        for (int i = 0; i < rowsContainer.getChildCount(); i++) {
+            View wrapper = rowsContainer.getChildAt(i);
+            if (!(wrapper instanceof LinearLayout) || ((LinearLayout) wrapper).getChildCount() < 1) continue;
+            View first = ((LinearLayout) wrapper).getChildAt(0);
+            if (!(first instanceof LinearLayout)) continue;
+            LinearLayout item = (LinearLayout) first;
+            if (item.getChildCount() < 2) continue;
+            TextView countryCell = (TextView) item.getChildAt(1);
+            if (!country.trim().equals(countryCell.getText().toString().trim())) continue;
+            boolean favorite = isFavoriteCountry(country);
+            GradientDrawable capsule = new GradientDrawable();
+            capsule.setColor(favorite ? Color.rgb(255, 220, 122) : Color.TRANSPARENT);
+            capsule.setCornerRadius(dp(48));
+            if (favorite) capsule.setStroke(dp(1), Color.rgb(105, 124, 70));
+            item.setBackground(capsule);
+        }
     }
 
     private FrameLayout makeBottomNavigation() {
