@@ -105,6 +105,8 @@ public class PriceRankingActivity extends Activity {
         });
 
         FrameLayout contentFrame = new FrameLayout(this);
+        contentFrame.setClipChildren(false);
+        contentFrame.setClipToPadding(false);
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(12), 0, dp(12), dp(64));
@@ -355,42 +357,65 @@ public class PriceRankingActivity extends Activity {
         thresholdLabel.setText("价格变动阈值");
         thresholdLabel.setTextSize(13);
         thresholdLabel.setTextColor(ink);
+        thresholdLabel.setPadding(dp(2), dp(3), 0, dp(5));
         monitorCard.addView(thresholdLabel);
 
+        float saved = getSharedPreferences(PriceMonitorWorker.PREFS, MODE_PRIVATE)
+                .getFloat(PriceMonitorWorker.THRESHOLD_KEY, 5f);
+        int initialThreshold = Math.max(1, Math.min(100, Math.round(saved)));
         LinearLayout thresholdRow = new LinearLayout(this);
         thresholdRow.setOrientation(LinearLayout.HORIZONTAL);
         thresholdRow.setGravity(Gravity.CENTER_VERTICAL);
-        android.widget.EditText threshold = new android.widget.EditText(this);
-        threshold.setSingleLine(true);
-        threshold.setInputType(8194);
-        threshold.setTextSize(18);
-        threshold.setTextColor(ink);
-        threshold.setSelectAllOnFocus(true);
-        float saved = getSharedPreferences(PriceMonitorWorker.PREFS, MODE_PRIVATE)
-                .getFloat(PriceMonitorWorker.THRESHOLD_KEY, 5f);
-        threshold.setText(saved == (int) saved ? String.valueOf((int) saved) : String.valueOf(saved));
-        threshold.setPadding(dp(4), 0, dp(4), 0);
-        threshold.setBackgroundColor(Color.TRANSPARENT);
-        thresholdRow.setPadding(dp(14), 0, dp(8), 0);
+        thresholdRow.setPadding(dp(14), 0, dp(10), 0);
         GradientDrawable thresholdPill = new GradientDrawable();
-        thresholdPill.setColor(Color.rgb(244, 247, 231));
+        thresholdPill.setColor(Color.argb(179, 255, 255, 255));
         thresholdPill.setCornerRadius(dp(48));
-        thresholdPill.setStroke(dp(1), Color.rgb(218, 224, 203));
+        thresholdPill.setStroke(dp(1), Color.argb(65, 39, 55, 35));
         thresholdRow.setBackground(thresholdPill);
         thresholdRow.setElevation(dp(4));
-        thresholdRow.addView(threshold, new LinearLayout.LayoutParams(0, dp(48), 1));
 
-        TextView percent = new TextView(this);
-        percent.setText("%");
-        percent.setTextSize(17);
-        percent.setTextColor(ink);
-        percent.setGravity(Gravity.CENTER);
-        thresholdRow.addView(percent, new LinearLayout.LayoutParams(dp(42), dp(50)));
+        TextView thresholdValue = new TextView(this);
+        thresholdValue.setText(initialThreshold + "%");
+        thresholdValue.setTextSize(18);
+        thresholdValue.setTypeface(null, Typeface.BOLD);
+        thresholdValue.setTextColor(ink);
+        thresholdValue.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+        thresholdRow.addView(thresholdValue, new LinearLayout.LayoutParams(dp(54), dp(48)));
+
+        android.widget.SeekBar thresholdSlider = new android.widget.SeekBar(this);
+        thresholdSlider.setMax(99);
+        thresholdSlider.setProgress(initialThreshold - 1);
+        thresholdSlider.setContentDescription("拖动设置价格变动百分比");
+        thresholdSlider.setProgressTintList(android.content.res.ColorStateList.valueOf(Color.rgb(40, 90, 45)));
+        thresholdSlider.setThumbTintList(android.content.res.ColorStateList.valueOf(Color.rgb(40, 90, 45)));
+        thresholdSlider.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.argb(65, 39, 55, 35)));
+        thresholdRow.addView(thresholdSlider, new LinearLayout.LayoutParams(0, dp(52), 1));
+        thresholdSlider.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                thresholdValue.setText((progress + 1) + "%");
+                if (fromUser) {
+                    thresholdValue.animate().cancel();
+                    thresholdValue.setScaleX(1f);
+                    thresholdValue.setScaleY(1f);
+                    thresholdValue.animate().scaleX(1.12f).scaleY(1.12f).setDuration(80)
+                            .withEndAction(() -> thresholdValue.animate().scaleX(1f).scaleY(1f).setDuration(150)
+                                    .setInterpolator(new android.view.animation.OvershootInterpolator(1.5f)).start())
+                            .start();
+                }
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar seekBar) {
+                thresholdRow.animate().scaleX(1.012f).scaleY(1.025f).setDuration(100).start();
+            }
+            @Override public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                thresholdRow.animate().scaleX(1f).scaleY(1f).setDuration(160)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(1.3f)).start();
+            }
+        });
         monitorCard.addView(thresholdRow);
 
         addSettingsButton(monitorCard, "保存并启用每日监控", true, () -> {
             float value;
-            try { value = Float.parseFloat(threshold.getText().toString().trim()); } catch (Exception e) { value = 0; }
+            value = thresholdSlider.getProgress() + 1;
             if (value < 1 || value > 100) {
                 android.widget.Toast.makeText(this, "阈值请设置为 1 到 100", android.widget.Toast.LENGTH_SHORT).show();
                 return;
@@ -443,7 +468,7 @@ public class PriceRankingActivity extends Activity {
         button.setTextColor(primary ? Color.WHITE : ink);
         GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadius(dp(48));
-        bg.setColor(primary ? Color.rgb(40, 90, 45) : Color.rgb(238, 239, 218));
+        bg.setColor(primary ? Color.rgb(40, 90, 45) : Color.argb(179, 255, 255, 255));
         if (!primary) bg.setStroke(dp(1), line);
         button.setBackground(bg);
         button.setElevation(dp(5));
@@ -656,7 +681,7 @@ public class PriceRankingActivity extends Activity {
 
         boolean favorite = isFavoriteCountry(row.country);
         GradientDrawable capsule = new GradientDrawable();
-        capsule.setColor(favorite ? Color.rgb(255, 220, 122) : Color.TRANSPARENT);
+        capsule.setColor(favorite ? Color.argb(179, 255, 255, 255) : Color.TRANSPARENT);
         capsule.setCornerRadius(dp(48));
         if (favorite) capsule.setStroke(dp(1), Color.rgb(105, 124, 70));
         item.setBackground(capsule);
@@ -742,6 +767,8 @@ public class PriceRankingActivity extends Activity {
 
     private FrameLayout makeBottomNavigation() {
         FrameLayout shell = new FrameLayout(this);
+        shell.setClipChildren(false);
+        shell.setClipToPadding(false);
         navItems = new LinearLayout(this);
         navItems.setGravity(Gravity.CENTER);
         navItems.setOrientation(LinearLayout.HORIZONTAL);
