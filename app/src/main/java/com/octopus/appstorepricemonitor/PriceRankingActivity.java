@@ -1,19 +1,17 @@
 package com.octopus.appstorepricemonitor;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
-import android.widget.TextView;
 
 public class PriceRankingActivity extends Activity {
     private WebView webView;
@@ -22,65 +20,50 @@ public class PriceRankingActivity extends Activity {
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Keep Android's status/notification bar visible; never use fullscreen mode.
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        getWindow().setStatusBarColor(Color.rgb(247, 248, 250));
+        getWindow().setNavigationBarColor(Color.rgb(247, 248, 250));
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+
         String url = getIntent().getStringExtra("url");
         if (url == null || !url.startsWith("https://appstoreprice.org/zh/apps/")) {
-            url = getSharedPreferences("price_ranking", MODE_PRIVATE).getString("url", DEFAULT_URL);
+            url = getSharedPreferences("price_ranking", MODE_PRIVATE)
+                    .getString("url", DEFAULT_URL);
         }
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.WHITE);
-
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(8), dp(2), dp(8), dp(2));
-
-        TextView title = new TextView(this);
-        title.setText("价格哨兵  ·  全球订阅价格");
-        title.setTextSize(17);
-        title.setTypeface(null, 1);
-        title.setTextColor(Color.rgb(23, 32, 51));
-        header.addView(title, new LinearLayout.LayoutParams(0, dp(44), 1));
-
-        Button settings = new Button(this);
-        settings.setText("监控设置");
-        header.addView(settings, new LinearLayout.LayoutParams(dp(100), dp(42)));
-
-        Button refresh = new Button(this);
-        refresh.setText("刷新");
-        header.addView(refresh, new LinearLayout.LayoutParams(dp(72), dp(42)));
-        root.addView(header);
+        root.setBackgroundColor(Color.rgb(248, 250, 253));
 
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        root.addView(progress, new LinearLayout.LayoutParams(-1, dp(3)));
+        progress.setMax(100);
+        root.addView(progress, new LinearLayout.LayoutParams(-1, dp(2)));
 
         webView = new WebView(this);
-        WebSettings webSettings = webView.getSettings();
-        webSettings.setJavaScriptEnabled(true);
-        webSettings.setDomStorageEnabled(true);
-        webSettings.setLoadsImagesAutomatically(true);
-        webSettings.setSupportZoom(true);
-        webSettings.setBuiltInZoomControls(true);
-        webSettings.setDisplayZoomControls(false);
-        webSettings.setUseWideViewPort(true);
-        webSettings.setLoadWithOverviewMode(true);
-        String ua = webSettings.getUserAgentString();
-        webSettings.setUserAgentString(ua.replace("; wv", "").replace(" Mobile", ""));
+        webView.setBackgroundColor(Color.rgb(248, 250, 253));
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setLoadsImagesAutomatically(true);
+        settings.setSupportZoom(true);
+        settings.setBuiltInZoomControls(true);
+        settings.setDisplayZoomControls(false);
+        settings.setUseWideViewPort(true);
+        settings.setLoadWithOverviewMode(false);
+        String ua = settings.getUserAgentString();
+        settings.setUserAgentString(ua.replace("; wv", "").replace(" Mobile", ""));
+
         webView.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView view, String pageUrl) {
                 super.onPageFinished(view, pageUrl);
-                String js = "(function(){"
-                    + "var s=document.createElement('style');"
-                    + "s.innerHTML='html,body{width:100%!important;max-width:100%!important;}"
-                    + "aside,[class*=sidebar],[class*=Sidebar],[class*=advert],[class*=advertisement],[id*=sidebar]{display:none!important;}"
-                    + "main,[class*=main-content],[class*=content]{max-width:none!important;width:100%!important;}' ;"
-                    + "document.head.appendChild(s);"
-                    + "var all=document.querySelectorAll('body *');"
-                    + "for(var i=0;i<all.length;i++){var e=all[i];if(e.children.length===0){var t=(e.innerText||e.textContent||'').trim();"
-                    + "if(t==='价格分布'||t==='礼品卡商城'){var p=e;for(var j=0;j<4&&p.parentElement;j++)p=p.parentElement;p.style.display='none';}}}"
-                    + "})();";
-                view.evaluateJavascript(js, null);
+                // Wait for the site's client-side rendering, then keep only the ranking table.
+                view.evaluateJavascript("setTimeout(function(){(" + rankingOnlyScript() + ")();},350);", null);
+                view.postDelayed(() ->
+                        view.evaluateJavascript("("+rankingOnlyScript()+")();", null), 1200);
             }
         });
         webView.setWebChromeClient(new WebChromeClient() {
@@ -91,10 +74,33 @@ public class PriceRankingActivity extends Activity {
         });
         root.addView(webView, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
-
-        settings.setOnClickListener(v -> startActivity(new Intent(this, MainActivity.class)));
-        refresh.setOnClickListener(v -> webView.reload());
         webView.loadUrl(url);
+    }
+
+    private String rankingOnlyScript() {
+        return "function(){"
+            + "try{"
+            + "var norm=function(e){return ((e.innerText||e.textContent||'').replace(/\\s+/g,' ').trim());};"
+            + "var nodes=Array.from(document.querySelectorAll('body *'));"
+            + "var heads=nodes.filter(function(e){return e.children.length===0 && /排名/.test(norm(e)) && norm(e).length<20;});"
+            + "var target=null;"
+            + "for(var h of heads){var p=h;for(var i=0;i<9&&p&&p!==document.body;i++,p=p.parentElement){"
+            + "var t=norm(p);if(t.includes('地区')&&t.includes('原价')&&t.includes('CNY')&&t.includes('状态')){"
+            + "target=p;break;}}if(target)break;}"
+            + "if(!target){var candidates=nodes.filter(function(e){var t=norm(e);return t.includes('排名')&&t.includes('地区')&&t.includes('原价')&&t.includes('CNY')&&t.includes('状态')&&t.length<50000;});"
+            + "candidates.sort(function(a,b){return norm(a).length-norm(b).length;});target=candidates[0]||null;}"
+            + "if(!target)return;"
+            + "var style=document.getElementById('price-ranking-only-style');if(!style){style=document.createElement('style');style.id='price-ranking-only-style';document.head.appendChild(style);}"
+            + "style.textContent='html,body{margin:0!important;padding:0!important;width:100%!important;max-width:100%!important;overflow-x:hidden!important;background:#f8fafd!important;}body *{box-sizing:border-box;}';"
+            + "var chain=[],p=target;while(p&&p!==document.body){chain.push(p);p=p.parentElement;}"
+            + "if(!chain.length)return;"
+            + "document.body.style.visibility='visible';"
+            + "var top=chain[chain.length-1];Array.from(document.body.children).forEach(function(e){if(e!==top)e.style.setProperty('display','none','important');});"
+            + "for(var k=chain.length-1;k>=0;k--){var parent=chain[k].parentElement;if(!parent)continue;Array.from(parent.children).forEach(function(e){if(e!==chain[k])e.style.setProperty('display','none','important');});}"
+            + "target.style.setProperty('display','block','important');target.style.setProperty('visibility','visible','important');"
+            + "target.style.setProperty('width','100%','important');target.style.setProperty('max-width','none','important');target.style.setProperty('margin','0','important');target.style.setProperty('padding','0','important');"
+            + "target.style.setProperty('overflow-x','auto','important');"
+            + "}catch(e){}}";
     }
 
     @Override public void onBackPressed() {
