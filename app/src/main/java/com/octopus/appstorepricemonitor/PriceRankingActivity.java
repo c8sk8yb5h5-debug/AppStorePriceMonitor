@@ -62,6 +62,11 @@ public class PriceRankingActivity extends Activity {
     private View tableHeader;
     private ScrollView priceScroll;
     private GestureDetector swipeDetector;
+    private View swipeCard;
+    private float swipeDownX;
+    private float swipeDownY;
+    private float swipeLastX;
+    private boolean horizontalSwipeTracking;
     private boolean changingProduct = false;
     private TextView statusView;
     private ProgressBar progress;
@@ -136,6 +141,7 @@ public class PriceRankingActivity extends Activity {
         FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(-1, -1, Gravity.TOP);
         cardLp.bottomMargin = dp(30);
         contentFrame.addView(card, cardLp);
+        swipeCard = card;
 
         currentHeading = new TextView(this);
         currentHeading.setText(PRODUCT_NAMES[selectedProduct].toUpperCase());
@@ -189,16 +195,6 @@ public class PriceRankingActivity extends Activity {
 
         swipeDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override public boolean onDown(MotionEvent e) { return true; }
-            @Override public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-                if (e1 == null || e2 == null) return false;
-                float dx = e2.getX() - e1.getX();
-                float dy = e2.getY() - e1.getY();
-                if (Math.abs(dx) > dp(65) && Math.abs(dx) > Math.abs(dy) * 1.25f && Math.abs(velocityX) > dp(120)) {
-                    selectProduct((selectedProduct + (dx < 0 ? 1 : PRODUCT_URLS.length - 1)) % PRODUCT_URLS.length, dx < 0 ? 1 : -1);
-                    return true;
-                }
-                return false;
-            }
         });
         setContentView(root);
         root.requestApplyInsets();
@@ -607,6 +603,58 @@ public class PriceRankingActivity extends Activity {
 
     @Override public boolean dispatchTouchEvent(MotionEvent event) {
         if (swipeDetector != null) swipeDetector.onTouchEvent(event);
+        if (swipeCard != null && !changingProduct) {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    swipeDownX = event.getX();
+                    swipeDownY = event.getY();
+                    swipeLastX = swipeDownX;
+                    horizontalSwipeTracking = false;
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    float dx = event.getX() - swipeDownX;
+                    float dy = event.getY() - swipeDownY;
+                    if (!horizontalSwipeTracking && Math.abs(dx) > dp(10) && Math.abs(dx) > Math.abs(dy) * 1.25f) {
+                        horizontalSwipeTracking = true;
+                    }
+                    if (horizontalSwipeTracking) {
+                        swipeLastX = event.getX();
+                        // Keep the card attached to the finger, with slight resistance near the edge.
+                        float resisted = dx * (Math.abs(dx) > swipeCard.getWidth() * 0.75f ? 0.72f : 0.9f);
+                        swipeCard.setTranslationX(resisted);
+                        swipeCard.setRotationY(Math.max(-3f, Math.min(3f, -resisted / Math.max(1f, swipeCard.getWidth()) * 3f)));
+                    }
+                    break;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    if (horizontalSwipeTracking) {
+                        float dxEnd = event.getX() - swipeDownX;
+                        float threshold = Math.max(dp(72), swipeCard.getWidth() * 0.22f);
+                        boolean commitSwipe = event.getActionMasked() == MotionEvent.ACTION_UP && Math.abs(dxEnd) > threshold;
+                        if (commitSwipe) {
+                            int direction = dxEnd < 0 ? 1 : -1;
+                            int next = (selectedProduct + (direction > 0 ? 1 : PRODUCT_URLS.length - 1)) % PRODUCT_URLS.length;
+                            float exitX = direction > 0 ? -swipeCard.getWidth() : swipeCard.getWidth();
+                            swipeCard.animate().translationX(exitX).rotationY(direction > 0 ? -3f : 3f)
+                                    .setDuration(150)
+                                    .withEndAction(() -> {
+                                        swipeCard.setTranslationX(direction > 0 ? swipeCard.getWidth() : -swipeCard.getWidth());
+                                        swipeCard.setRotationY(direction > 0 ? 3f : -3f);
+                                        selectProduct(next, direction);
+                                    }).start();
+                        } else {
+                            swipeCard.animate().translationX(0).rotationY(0)
+                                    .setDuration(190)
+                                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f))
+                                    .start();
+                        }
+                        horizontalSwipeTracking = false;
+                        return true;
+                    }
+                    horizontalSwipeTracking = false;
+                    break;
+            }
+        }
         return super.dispatchTouchEvent(event);
     }
 
@@ -762,10 +810,19 @@ public class PriceRankingActivity extends Activity {
             priceScroll.setVisibility(View.VISIBLE);
             loadPrices();
         }
-        // No sideways content movement: only the selected navigation bubble performs the jelly lift.
-        priceScroll.animate().alpha(0.94f).setDuration(100).withEndAction(() ->
-                priceScroll.animate().alpha(1f).setDuration(180)
-                        .withEndAction(() -> changingProduct = false).start()).start();
+        // Slide the new card in from the side opposite to the swipe direction.
+        if (swipeCard != null) {
+            float entryX = direction > 0 ? swipeCard.getWidth() : -swipeCard.getWidth();
+            swipeCard.setTranslationX(entryX);
+            swipeCard.setRotationY(direction > 0 ? 3f : -3f);
+            swipeCard.animate().translationX(0).rotationY(0)
+                    .setDuration(230)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f))
+                    .withEndAction(() -> changingProduct = false)
+                    .start();
+        } else {
+            changingProduct = false;
+        }
     }
 
     @Override public void onBackPressed() { super.onBackPressed(); }
