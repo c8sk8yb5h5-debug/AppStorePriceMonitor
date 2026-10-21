@@ -3,12 +3,7 @@ package com.octopus.appstorepricemonitor;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.DownloadManager;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Environment;
 import android.content.pm.PackageInfo;
@@ -46,8 +41,6 @@ public class MainActivity extends Activity {
     private EditText thresholdInput;
     private TextView status;
     private static final int NOTIFICATION_PERMISSION = 1001;
-    private long updateDownloadId = -1;
-    private BroadcastReceiver updateReceiver;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,7 +48,6 @@ public class MainActivity extends Activity {
         requestNotificationPermission();
         buildUi();
         scheduleDailyCheck();
-        registerUpdateReceiver();
         checkForUpdates(false);
     }
 
@@ -160,9 +152,9 @@ public class MainActivity extends Activity {
     }
 
     private void downloadUpdate(String url, String tag) {
-        if (android.os.Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+        if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
             new AlertDialog.Builder(this).setTitle("需要允许安装应用")
-                .setMessage("请允许“价格哨兵”安装应用，返回后再次点击检查更新。")
+                .setMessage("请允许“价格哨兵”安装应用，返回后重新点击“检查应用更新”。")
                 .setNegativeButton("取消", null)
                 .setPositiveButton("打开设置", (d, w) -> {
                     Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
@@ -171,61 +163,52 @@ public class MainActivity extends Activity {
                 }).show();
             return;
         }
-        try {
-            File target = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "price-sentinel-update.apk");
-            if (target.exists()) target.delete();
-            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url))
-                .setTitle("价格哨兵 " + tag)
-                .setDescription("正在下载应用更新")
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, "price-sentinel-update.apk");
-            DownloadManager manager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-            updateDownloadId = manager.enqueue(request);
-            Toast.makeText(this, "已开始下载更新", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            Toast.makeText(this, "无法开始下载，请稍后重试", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void registerUpdateReceiver() {
-        updateReceiver = new BroadcastReceiver() {
-            @Override public void onReceive(Context context, Intent intent) {
-                if (!DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals(intent.getAction())) return;
-                long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
-                if (id != updateDownloadId) return;
-                DownloadManager manager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-                Cursor cursor = manager.query(new DownloadManager.Query().setFilterById(id));
-                boolean success = false;
-                if (cursor != null) {
-                    if (cursor.moveToFirst()) success = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)) == DownloadManager.STATUS_SUCCESSFUL;
-                    cursor.close();
+        status.setText("正在下载更新包，请保持应用打开…");
+        new Thread(() -> {
+            File temp = null;
+            try {
+                temp = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "price-sentinel-update.apk");
+                if (temp.exists()) temp.delete();
+                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setConnectTimeout(20000);
+                conn.setReadTimeout(30000);
+                conn.setInstanceFollowRedirects(true);
+                conn.setRequestProperty("User-Agent", "PriceSentinel-Android");
+                int code = conn.getResponseCode();
+                if (code != 200) throw new Exception("HTTP " + code);
+                try (java.io.InputStream in = conn.getInputStream();
+                     java.io.FileOutputStream out = new java.io.FileOutputStream(temp)) {
+                    byte[] buffer = new byte[16384];
+                    int n;
+                    while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
+                    out.flush();
+                } finally {
+                    conn.disconnect();
                 }
-                if (!success) {
-                    Toast.makeText(MainActivity.this, "更新下载失败，请检查网络后重试", Toast.LENGTH_LONG).show();
-                    return;
-                }
-                try {
-                    File apk = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "price-sentinel-update.apk");
-                    Uri uri = FileProvider.getUriForFile(MainActivity.this, getPackageName() + ".fileprovider", apk);
-                    Intent install = new Intent(Intent.ACTION_VIEW);
-                    install.setDataAndType(uri, "application/vnd.android.package-archive");
-                    install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(install);
-                } catch (Exception e) {
-                    Toast.makeText(MainActivity.this, "无法打开系统安装器，请重试", Toast.LENGTH_LONG).show();
-                }
+                if (!temp.exists() || temp.length() < 100000) throw new Exception("APK 文件不完整");
+                File apk = temp;
+                runOnUiThread(() -> {
+                    status.setText("更新包下载完成，正在打开安装界面…");
+                    try {
+                        Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", apk);
+                        Intent install = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+                        install.setData(uri);
+                        install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        install.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+                        startActivity(install);
+                    } catch (Exception e) {
+                        status.setText("已下载更新包，但无法打开安装界面。请在应用信息中允许安装未知应用后重试。");
+                        Toast.makeText(this, "无法打开系统安装器", Toast.LENGTH_LONG).show();
+                    }
+                });
+            } catch (Exception e) {
+                if (temp != null && temp.exists()) temp.delete();
+                runOnUiThread(() -> {
+                    status.setText("更新下载失败，请检查网络后重试。");
+                    Toast.makeText(this, "更新下载失败，请检查网络后重试", Toast.LENGTH_LONG).show();
+                });
             }
-        };
-        IntentFilter filter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
-        if (Build.VERSION.SDK_INT >= 33) registerReceiver(updateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        else registerReceiver(updateReceiver, filter);
-    }
-
-    @Override protected void onDestroy() {
-        if (updateReceiver != null) {
-            try { unregisterReceiver(updateReceiver); } catch (Exception ignored) {}
-        }
-        super.onDestroy();
+        }).start();
     }
 
     private void saveSettings() {
