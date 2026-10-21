@@ -639,20 +639,17 @@ public class PriceRankingActivity extends Activity {
             LinearLayout item = new LinearLayout(this);
             item.setGravity(Gravity.CENTER);
             item.setOrientation(LinearLayout.VERTICAL);
-            TextView icon = new TextView(this);
-            icon.setText(symbols[i]);
-            icon.setTextSize(i < 2 ? 13 : 22);
-            icon.setTypeface(null, i < 2 ? Typeface.BOLD : Typeface.NORMAL);
-            icon.setGravity(Gravity.CENTER);
-            icon.setContentDescription(descriptions[i]);
-            icon.setTextColor(Color.rgb(225, 227, 218));
+            TextView icon;
             if (i < 2) {
-                GradientDrawable markBg = new GradientDrawable();
-                markBg.setShape(GradientDrawable.OVAL);
-                markBg.setColor(Color.rgb(225, 248, 241));
-                icon.setTextColor(Color.rgb(16, 163, 127));
-                icon.setBackground(markBg);
+                icon = new ChatGptNavIcon(i == 0 ? "＋" : "G");
+            } else {
+                icon = new TextView(this);
+                icon.setText(symbols[i]);
+                icon.setTextSize(22);
+                icon.setGravity(Gravity.CENTER);
+                icon.setTextColor(Color.rgb(225, 227, 218));
             }
+            icon.setContentDescription(descriptions[i]);
             item.addView(icon, new LinearLayout.LayoutParams(-1, dp(42)));
             View dot = new View(this);
             item.addView(dot, new LinearLayout.LayoutParams(dp(4), dp(4)));
@@ -662,7 +659,7 @@ public class PriceRankingActivity extends Activity {
             navItems.addView(item, new LinearLayout.LayoutParams(dp(64), -1));
         }
 
-        floatingActiveIcon = new TextView(this);
+        floatingActiveIcon = new ChatGptNavIcon("＋");
         floatingActiveIcon.setGravity(Gravity.CENTER);
         floatingActiveIcon.setTextSize(25);
         floatingActiveIcon.setTextColor(Color.rgb(18, 122, 92));
@@ -750,6 +747,52 @@ public class PriceRankingActivity extends Activity {
     }
 
     @Override public void onBackPressed() { super.onBackPressed(); }
+
+    private GradientDrawable bubbleDrawable() {
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.OVAL);
+        bg.setColor(Color.rgb(255, 255, 249));
+        return bg;
+    }
+
+    private final class ChatGptNavIcon extends TextView {
+        private final Paint logoPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private String badge;
+        ChatGptNavIcon(String badge) {
+            super(PriceRankingActivity.this);
+            this.badge = badge;
+            setGravity(Gravity.CENTER);
+            setText("");
+        }
+        void setBadge(String value) { badge = value; invalidate(); }
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float cx = getWidth() / 2f, cy = getHeight() / 2f;
+            float radius = dp(5), ring = dp(4);
+            logoPaint.setStyle(Paint.Style.STROKE);
+            logoPaint.setStrokeWidth(dp(1.5f));
+            logoPaint.setStrokeCap(Paint.Cap.ROUND);
+            logoPaint.setStrokeJoin(Paint.Join.ROUND);
+            logoPaint.setColor(Color.rgb(16, 163, 127));
+            for (int i = 0; i < 6; i++) {
+                double a = Math.toRadians(i * 60);
+                float x = cx + (float)Math.cos(a) * ring;
+                float y = cy + (float)Math.sin(a) * ring;
+                canvas.drawCircle(x, y, radius, logoPaint);
+            }
+            logoPaint.setStyle(Paint.Style.FILL);
+            logoPaint.setColor(Color.rgb(16, 163, 127));
+            canvas.drawCircle(cx, cy, dp(1.8f), logoPaint);
+            float bx = cx + dp(9), by = cy + dp(9);
+            logoPaint.setColor(Color.rgb(255, 220, 122));
+            canvas.drawCircle(bx, by, dp(4.5f), logoPaint);
+            logoPaint.setColor(Color.rgb(27, 37, 20));
+            logoPaint.setTextAlign(Paint.Align.CENTER);
+            logoPaint.setTextSize(dp(7));
+            logoPaint.setTypeface(Typeface.DEFAULT_BOLD);
+            canvas.drawText(badge, bx, by + dp(2.3f), logoPaint);
+        }
+    }
 
     private int dp(int value) {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
