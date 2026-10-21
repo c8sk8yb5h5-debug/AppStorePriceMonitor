@@ -460,7 +460,7 @@ public class PriceRankingActivity extends Activity {
                 int[] order = {1, 0, 2, 3, -1};
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
-                float cx = w * (slot + 0.5f) / 5f;
+                float cx = dp(18) + (w - dp(36)) * (slot + 0.5f) / 5f;
                 float notch = dp(37), top = dp(9), r = dp(36);
                 Path path = new Path();
                 path.moveTo(0, top + r);
@@ -525,7 +525,7 @@ public class PriceRankingActivity extends Activity {
     private void renderBottomNavigation() {
         if (bottomNav == null || navItems == null || floatingActiveIcon == null) return;
         String[] symbols = {"✳", "G", "✦", "✧", "⚙"};
-        int[] productIndex = {1, 0, 2, 3, -1};
+        int[] productIndex = {0, 1, 2, 3, 4};
         int selectedSlot = 0;
         for (int i = 0; i < navItems.getChildCount(); i++) {
             LinearLayout item = (LinearLayout) navItems.getChildAt(i);
