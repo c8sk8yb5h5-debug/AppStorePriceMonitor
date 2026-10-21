@@ -770,7 +770,7 @@ public class PriceRankingActivity extends Activity {
             float cx = getWidth() / 2f, cy = getHeight() / 2f;
             float radius = dp(5), ring = dp(4);
             logoPaint.setStyle(Paint.Style.STROKE);
-            logoPaint.setStrokeWidth(dp(1.5f));
+            logoPaint.setStrokeWidth(dp(2));
             logoPaint.setStrokeCap(Paint.Cap.ROUND);
             logoPaint.setStrokeJoin(Paint.Join.ROUND);
             logoPaint.setColor(Color.rgb(16, 163, 127));
@@ -782,15 +782,15 @@ public class PriceRankingActivity extends Activity {
             }
             logoPaint.setStyle(Paint.Style.FILL);
             logoPaint.setColor(Color.rgb(16, 163, 127));
-            canvas.drawCircle(cx, cy, dp(1.8f), logoPaint);
+            canvas.drawCircle(cx, cy, dp(2), logoPaint);
             float bx = cx + dp(9), by = cy + dp(9);
             logoPaint.setColor(Color.rgb(255, 220, 122));
-            canvas.drawCircle(bx, by, dp(4.5f), logoPaint);
+            canvas.drawCircle(bx, by, dp(5), logoPaint);
             logoPaint.setColor(Color.rgb(27, 37, 20));
             logoPaint.setTextAlign(Paint.Align.CENTER);
             logoPaint.setTextSize(dp(7));
             logoPaint.setTypeface(Typeface.DEFAULT_BOLD);
-            canvas.drawText(badge, bx, by + dp(2.3f), logoPaint);
+            canvas.drawText(badge, bx, by + dp(2), logoPaint);
         }
     }
 
