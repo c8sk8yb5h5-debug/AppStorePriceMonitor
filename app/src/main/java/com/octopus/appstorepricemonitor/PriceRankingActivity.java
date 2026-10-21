@@ -901,19 +901,20 @@ public class PriceRankingActivity extends Activity {
             floatingActiveIcon.setTextSize(25);
         }
         if (navShape != null) {
-            float startCenter = animatedNotchCenter;
-            if (startCenter < 0) {
-                startCenter = navShape.getWidth() / 2f - dp(160) + dp(64) * (selectedSlot + 0.5f);
-            }
-            float endCenter = navShape.getWidth() / 2f - dp(160) + dp(64) * (selectedSlot + 0.5f);
-            android.animation.ValueAnimator notchAnimator = android.animation.ValueAnimator.ofFloat(startCenter, endCenter);
-            notchAnimator.setDuration(420);
-            notchAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator(1.7f));
-            notchAnimator.addUpdateListener(animation -> {
-                animatedNotchCenter = (Float) animation.getAnimatedValue();
-                navShape.invalidate();
+            navShape.post(() -> {
+                float endCenter = navShape.getWidth() / 2f - dp(160) + dp(64) * (targetSlot + 0.5f);
+                float startCenter = animatedNotchCenter >= 0 ? animatedNotchCenter : endCenter;
+                if (notchAnimator != null) notchAnimator.cancel();
+                notchAnimator = android.animation.ValueAnimator.ofFloat(startCenter, endCenter);
+                notchAnimator.setDuration(420);
+                notchAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f));
+                notchAnimator.addUpdateListener(animation -> {
+                    animatedNotchCenter = (Float) animation.getAnimatedValue();
+                    navShape.invalidate();
+                    if (mainCard != null && mainCard.getBackground() != null) mainCard.getBackground().invalidateSelf();
+                });
+                notchAnimator.start();
             });
-            notchAnimator.start();
         }
         floatingActiveIcon.post(() -> {
             float centerX = bottomNav.getWidth() / 2f - dp(160) + dp(64) * (targetSlot + 0.5f);
