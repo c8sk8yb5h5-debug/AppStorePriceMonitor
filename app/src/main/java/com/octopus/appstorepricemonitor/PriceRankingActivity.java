@@ -180,8 +180,9 @@ public class PriceRankingActivity extends Activity {
         horizontal.setHorizontalScrollBarEnabled(false);
         LinearLayout table = new LinearLayout(this);
         table.setOrientation(LinearLayout.VERTICAL);
-        table.setBackgroundColor(Color.rgb(157, 174, 111));
-        table.setElevation(dp(3));
+        // Let the rounded parent card define the top contour; an opaque table rectangle
+        // can protrude through the rounded top corners.
+        table.setBackgroundColor(Color.TRANSPARENT);
         table.setMinimumWidth(getResources().getDisplayMetrics().widthPixels - dp(48));
         tableHeader = makeHeader();
         table.addView(tableHeader);
@@ -192,7 +193,10 @@ public class PriceRankingActivity extends Activity {
         priceScroll = new ScrollView(this);
         priceScroll.setFillViewport(false);
         priceScroll.addView(horizontal);
-        card.addView(priceScroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        LinearLayout.LayoutParams priceScrollLp = new LinearLayout.LayoutParams(-1, 0, 1);
+        // Keep list/settings content below the rounded top edge of the main card.
+        priceScrollLp.topMargin = dp(8);
+        card.addView(priceScroll, priceScrollLp);
 
         bottomNav = makeBottomNavigation();
         FrameLayout.LayoutParams navLp = new FrameLayout.LayoutParams(-1, dp(112), Gravity.BOTTOM);
