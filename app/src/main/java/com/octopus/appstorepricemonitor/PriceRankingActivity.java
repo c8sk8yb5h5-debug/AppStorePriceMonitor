@@ -921,6 +921,7 @@ public class PriceRankingActivity extends Activity {
         private float wavePhase;
         private float waveAmplitude;
         private boolean tracking;
+        private android.animation.ValueAnimator waveSettleAnimator;
 
         LiquidThresholdView(Activity context, int initialValue) {
             super(context);
@@ -941,6 +942,26 @@ public class PriceRankingActivity extends Activity {
             invalidate();
         }
 
+        private void settleWave() {
+            if (waveSettleAnimator != null) waveSettleAnimator.cancel();
+            final float startPhase = wavePhase;
+            waveSettleAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
+            waveSettleAnimator.setDuration(520);
+            waveSettleAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator(1.2f));
+            waveSettleAnimator.addUpdateListener(anim -> {
+                float t = (Float) anim.getAnimatedValue();
+                wavePhase = startPhase + t * 2.8f;
+                waveAmplitude = dp(1) + (1f - t) * dp(3);
+                invalidate();
+            });
+            waveSettleAnimator.addListener(new android.animation.AnimatorListenerAdapter() {
+                @Override public void onAnimationEnd(android.animation.Animator animation) {
+                    waveAmplitude = dp(1);
+                    invalidate();
+                }
+            });
+            waveSettleAnimator.start();
+        }
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             float w = getWidth();
@@ -1017,8 +1038,7 @@ public class PriceRankingActivity extends Activity {
                 case MotionEvent.ACTION_UP:
                     updateFromTouch(event.getX());
                     tracking = false;
-                    waveAmplitude = dp(1);
-                    postInvalidateOnAnimation();
+                    settleWave();
                     animate().scaleX(1f).scaleY(1f).setDuration(220)
                             .setInterpolator(new android.view.animation.OvershootInterpolator(1.25f)).start();
                     if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
@@ -1026,7 +1046,7 @@ public class PriceRankingActivity extends Activity {
                     return true;
                 case MotionEvent.ACTION_CANCEL:
                     tracking = false;
-                    waveAmplitude = dp(1);
+                    settleWave();
                     if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
                     animate().scaleX(1f).scaleY(1f).setDuration(160).start();
                     invalidate();
