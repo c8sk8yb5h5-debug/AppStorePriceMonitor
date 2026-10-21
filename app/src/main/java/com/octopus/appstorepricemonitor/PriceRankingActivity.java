@@ -12,6 +12,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.HorizontalScrollView;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -42,11 +43,11 @@ public class PriceRankingActivity extends Activity {
     private String currentUrl;
     private int selectedProduct = 0;
 
-    private final int ink = Color.rgb(27, 37, 56);
+    private final int ink = Color.rgb(27, 37, 20);
     private final int muted = Color.rgb(104, 117, 139);
-    private final int line = Color.rgb(222, 229, 238);
-    private final int page = Color.rgb(247, 249, 253);
-    private final int blue = Color.rgb(22, 138, 245);
+    private final int line = Color.rgb(135, 154, 98);
+    private final int page = Color.rgb(255, 220, 122);
+    private final int blue = Color.rgb(255, 220, 122);
     private final int purple = Color.rgb(111, 77, 214);
 
     @Override protected void onCreate(Bundle savedInstanceState) {
@@ -65,57 +66,54 @@ public class PriceRankingActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(page);
+        root.setBackgroundColor(Color.rgb(255, 220, 122));
         root.setOnApplyWindowInsetsListener((view, insets) -> {
-            int top = insets.getSystemWindowInsetTop();
-            int bottom = insets.getSystemWindowInsetBottom();
-            view.setPadding(dp(12), top + dp(4), dp(12), bottom);
+            view.setPadding(dp(12), insets.getSystemWindowInsetTop() + dp(4), dp(12), insets.getSystemWindowInsetBottom());
             return insets;
         });
 
-        LinearLayout toolbar = new LinearLayout(this);
-        toolbar.setOrientation(LinearLayout.HORIZONTAL);
-        toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setPadding(dp(4), dp(4), dp(4), dp(6));
-        TextView spacer = new TextView(this);
-        spacer.setText("");
-        spacer.setTextColor(ink);
-        spacer.setTextSize(18);
-        spacer.setTypeface(null, Typeface.BOLD);
-        toolbar.addView(spacer, new LinearLayout.LayoutParams(0, dp(46), 1));
-        TextView settings = circleAction("⚙", "监控设置");
-        settings.setOnClickListener(v -> startActivity(new Intent(this, MainActivity.class)));
-        toolbar.addView(settings, new LinearLayout.LayoutParams(dp(44), dp(44)));
-        TextView refresh = circleAction("↻", "刷新");
-        LinearLayout.LayoutParams refreshLp = new LinearLayout.LayoutParams(dp(44), dp(44));
-        refreshLp.leftMargin = dp(10);
-        toolbar.addView(refresh, refreshLp);
-        refresh.setOnClickListener(v -> { refresh.animate().rotationBy(360).setDuration(360).start(); loadPrices(); });
-        root.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(54)));
+        FrameLayout contentFrame = new FrameLayout(this);
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(12), dp(12), dp(12), dp(64));
+        GradientDrawable cardBg = new GradientDrawable();
+        cardBg.setColor(Color.rgb(157, 174, 111));
+        cardBg.setCornerRadius(dp(30));
+        card.setBackground(cardBg);
+        FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(-1, -1);
+        cardLp.bottomMargin = dp(52);
+        contentFrame.addView(card, cardLp);
 
-        productTabs = new LinearLayout(this);
-        productTabs.setOrientation(LinearLayout.VERTICAL);
-        productTabs.setPadding(0, dp(4), 0, dp(10));
-        productTabs.addView(makeProductRow(true), new LinearLayout.LayoutParams(-1, dp(58)));
-        productTabs.addView(makeProductRow(false), new LinearLayout.LayoutParams(-1, dp(58)));
+        TextView heading = new TextView(this);
+        heading.setText(PRODUCT_NAMES[selectedProduct].toUpperCase());
+        heading.setTextSize(26);
+        heading.setTextColor(Color.WHITE);
+        heading.setTypeface(Typeface.create("cursive", Typeface.NORMAL));
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.setSingleLine(true);
+        heading.setPadding(dp(10), 0, 0, 0);
+        card.addView(heading, new LinearLayout.LayoutParams(-1, dp(54)));
+        View titleDivider = new View(this);
+        titleDivider.setBackgroundColor(Color.rgb(177, 191, 137));
+        card.addView(titleDivider, new LinearLayout.LayoutParams(-1, dp(1)));
 
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
-        root.addView(progress, new LinearLayout.LayoutParams(-1, dp(2)));
+        card.addView(progress, new LinearLayout.LayoutParams(-1, dp(2)));
         statusView = new TextView(this);
         statusView.setText("正在读取全球价格…");
-        statusView.setTextSize(12);
-        statusView.setTextColor(muted);
-        statusView.setPadding(dp(4), dp(8), dp(4), dp(8));
-        root.addView(statusView);
+        statusView.setTextSize(11);
+        statusView.setTextColor(Color.rgb(58, 72, 45));
+        statusView.setPadding(dp(4), dp(5), dp(4), dp(5));
+        card.addView(statusView, new LinearLayout.LayoutParams(-1, dp(25)));
 
         HorizontalScrollView horizontal = new HorizontalScrollView(this);
         horizontal.setFillViewport(true);
         horizontal.setHorizontalScrollBarEnabled(false);
         LinearLayout table = new LinearLayout(this);
         table.setOrientation(LinearLayout.VERTICAL);
-        table.setBackgroundColor(Color.WHITE);
-        table.setMinimumWidth(getResources().getDisplayMetrics().widthPixels - dp(24));
+        table.setBackgroundColor(Color.rgb(157, 174, 111));
+        table.setMinimumWidth(getResources().getDisplayMetrics().widthPixels - dp(48));
         table.addView(makeHeader());
         rowsContainer = new LinearLayout(this);
         rowsContainer.setOrientation(LinearLayout.VERTICAL);
@@ -124,9 +122,15 @@ public class PriceRankingActivity extends Activity {
         priceScroll = new ScrollView(this);
         priceScroll.setFillViewport(false);
         priceScroll.addView(horizontal);
-        root.addView(priceScroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        card.addView(priceScroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
         bottomNav = makeBottomNavigation();
-        root.addView(bottomNav, new LinearLayout.LayoutParams(-1, dp(74)));
+        FrameLayout.LayoutParams navLp = new FrameLayout.LayoutParams(-1, dp(112), Gravity.BOTTOM);
+        navLp.leftMargin = dp(2);
+        navLp.rightMargin = dp(2);
+        contentFrame.addView(bottomNav, navLp);
+        root.addView(contentFrame, new LinearLayout.LayoutParams(-1, 0, 1));
+
         swipeDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override public boolean onDown(MotionEvent e) { return true; }
             @Override public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
@@ -142,7 +146,6 @@ public class PriceRankingActivity extends Activity {
         });
         setContentView(root);
         root.requestApplyInsets();
-        renderProductTabs();
         renderBottomNavigation();
         loadPrices();
     }
@@ -236,12 +239,12 @@ public class PriceRankingActivity extends Activity {
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.setPadding(dp(6), 0, dp(6), 0);
-        header.setBackgroundColor(Color.rgb(242, 246, 251));
-        header.addView(cell("排名", 0.55f, Gravity.CENTER, true, muted));
-        header.addView(cell("地区", 1.35f, Gravity.START, true, muted));
-        header.addView(cell("原价", 1.65f, Gravity.CENTER, true, muted));
-        header.addView(cell("CNY", 1.0f, Gravity.CENTER, true, muted));
-        header.addView(cell("状态", 0.75f, Gravity.CENTER, true, muted));
+        header.setBackgroundColor(Color.rgb(157, 174, 111));
+        header.addView(cell("排名", 0.55f, Gravity.CENTER, true, ink));
+        header.addView(cell("地区", 1.35f, Gravity.START, true, ink));
+        header.addView(cell("原价", 1.65f, Gravity.CENTER, true, ink));
+        header.addView(cell("CNY", 1.0f, Gravity.CENTER, true, ink));
+        header.addView(cell("状态", 0.75f, Gravity.CENTER, true, ink));
         return header;
     }
 
