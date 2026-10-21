@@ -8,7 +8,6 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
-import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
@@ -21,12 +20,13 @@ import java.util.List;
 public class PriceRankingActivity extends Activity {
     private static final String PREFS = "price_ranking";
     private static final String DEFAULT_URL = "https://appstoreprice.org/zh/apps/6448311069?plan=1";
-    private static final String[] PRODUCT_NAMES = {"ChatGPT Go", "ChatGPT Plus", "Gemini AI Plus", "Gemini AI Pro"};
+    // The four plan URLs are kept in one place so they can be adjusted if the source site changes its plan IDs.
+    private static final String[] PRODUCT_NAMES = {"ChatGPT Go", "ChatGPT Plus", "Gemini AI Pro", "Gemini AI Plus"};
     private static final String[] PRODUCT_URLS = {
         "https://appstoreprice.org/zh/apps/6448311069?plan=1",
         "https://appstoreprice.org/zh/apps/6448311069?plan=0",
-        "https://appstoreprice.org/zh/apps/6477489729?plan=1",
-        "https://appstoreprice.org/zh/apps/6477489729?plan=0"
+        "https://appstoreprice.org/zh/apps/6477489729?plan=0",
+        "https://appstoreprice.org/zh/apps/6477489729?plan=1"
     };
 
     private LinearLayout rowsContainer;
@@ -39,74 +39,69 @@ public class PriceRankingActivity extends Activity {
     private final int ink = Color.rgb(27, 37, 56);
     private final int muted = Color.rgb(104, 117, 139);
     private final int line = Color.rgb(222, 229, 238);
-    private final int page = Color.rgb(248, 250, 253);
+    private final int page = Color.rgb(247, 249, 253);
     private final int blue = Color.rgb(22, 138, 245);
+    private final int purple = Color.rgb(111, 77, 214);
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN
-                | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         getWindow().setStatusBarColor(page);
         getWindow().setNavigationBarColor(page);
-        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
 
         currentUrl = getIntent().getStringExtra("url");
         if (currentUrl == null || !currentUrl.startsWith("https://appstoreprice.org/zh/apps/")) {
             currentUrl = getSharedPreferences(PREFS, MODE_PRIVATE).getString("url", DEFAULT_URL);
         }
-        for (int i = 0; i < PRODUCT_URLS.length; i++) {
-            if (PRODUCT_URLS[i].equals(currentUrl)) selectedProduct = i;
-        }
+        for (int i = 0; i < PRODUCT_URLS.length; i++) if (PRODUCT_URLS[i].equals(currentUrl)) selectedProduct = i;
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(page);
-        // Android 15+/Harmony compatibility may lay content behind the system status bar.
         root.setOnApplyWindowInsetsListener((view, insets) -> {
             int top = insets.getSystemWindowInsetTop();
             int bottom = insets.getSystemWindowInsetBottom();
-            view.setPadding(0, top, 0, bottom);
+            view.setPadding(dp(12), top + dp(4), dp(12), bottom);
             return insets;
         });
 
         LinearLayout toolbar = new LinearLayout(this);
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setPadding(dp(10), dp(2), dp(10), dp(2));
-        TextView settings = new TextView(this);
-        settings.setText("监控设置");
-        settings.setTextSize(14);
-        settings.setTextColor(ink);
-        settings.setGravity(Gravity.CENTER);
+        toolbar.setPadding(dp(4), dp(4), dp(4), dp(6));
+        TextView spacer = new TextView(this);
+        spacer.setText("价格哨兵");
+        spacer.setTextColor(ink);
+        spacer.setTextSize(18);
+        spacer.setTypeface(null, Typeface.BOLD);
+        toolbar.addView(spacer, new LinearLayout.LayoutParams(0, dp(46), 1));
+        TextView settings = circleAction("⚙", "监控设置");
         settings.setOnClickListener(v -> startActivity(new Intent(this, MainActivity.class)));
-        toolbar.addView(settings, new LinearLayout.LayoutParams(0, dp(44), 1));
-        TextView refresh = new TextView(this);
-        refresh.setText("刷新 ↻");
-        refresh.setTextSize(14);
-        refresh.setTextColor(ink);
-        refresh.setGravity(Gravity.CENTER);
-        refresh.setOnClickListener(v -> loadPrices());
-        toolbar.addView(refresh, new LinearLayout.LayoutParams(dp(82), dp(44)));
-        root.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(48)));
+        toolbar.addView(settings, new LinearLayout.LayoutParams(dp(44), dp(44)));
+        TextView refresh = circleAction("↻", "刷新");
+        LinearLayout.LayoutParams refreshLp = new LinearLayout.LayoutParams(dp(44), dp(44));
+        refreshLp.leftMargin = dp(10);
+        toolbar.addView(refresh, refreshLp);
+        refresh.setOnClickListener(v -> { refresh.animate().rotationBy(360).setDuration(360).start(); loadPrices(); });
+        root.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(54)));
 
         productTabs = new LinearLayout(this);
         productTabs.setOrientation(LinearLayout.VERTICAL);
-        productTabs.setPadding(dp(10), dp(2), dp(10), dp(7));
-        addProductTabRow(productTabs, 0, 1);
-        addProductTabRow(productTabs, 2, 3);
+        productTabs.setPadding(0, dp(4), 0, dp(10));
+        productTabs.addView(makeProductRow(true), new LinearLayout.LayoutParams(-1, dp(58)));
+        productTabs.addView(makeProductRow(false), new LinearLayout.LayoutParams(-1, dp(58)));
         root.addView(productTabs, new LinearLayout.LayoutParams(-1, -2));
 
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
         root.addView(progress, new LinearLayout.LayoutParams(-1, dp(2)));
-
         statusView = new TextView(this);
         statusView.setText("正在读取全球价格…");
         statusView.setTextSize(12);
         statusView.setTextColor(muted);
-        statusView.setPadding(dp(14), dp(7), dp(14), dp(7));
+        statusView.setPadding(dp(4), dp(8), dp(4), dp(8));
         root.addView(statusView);
 
         HorizontalScrollView horizontal = new HorizontalScrollView(this);
@@ -115,7 +110,7 @@ public class PriceRankingActivity extends Activity {
         LinearLayout table = new LinearLayout(this);
         table.setOrientation(LinearLayout.VERTICAL);
         table.setBackgroundColor(Color.WHITE);
-        table.setMinimumWidth(getResources().getDisplayMetrics().widthPixels);
+        table.setMinimumWidth(getResources().getDisplayMetrics().widthPixels - dp(24));
         table.addView(makeHeader());
         rowsContainer = new LinearLayout(this);
         rowsContainer.setOrientation(LinearLayout.VERTICAL);
@@ -131,25 +126,56 @@ public class PriceRankingActivity extends Activity {
         loadPrices();
     }
 
-    private void addProductTabRow(LinearLayout parent, int first, int second) {
+    private TextView circleAction(String symbol, String description) {
+        TextView view = new TextView(this);
+        view.setText(symbol);
+        view.setContentDescription(description);
+        view.setTextSize(23);
+        view.setTextColor(ink);
+        view.setGravity(Gravity.CENTER);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.OVAL);
+        bg.setColor(Color.WHITE);
+        bg.setStroke(dp(1), line);
+        view.setBackground(bg);
+        view.setElevation(dp(2));
+        view.setClickable(true);
+        view.setFocusable(true);
+        return view;
+    }
+
+    private LinearLayout makeProductRow(boolean chatGpt) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        TextView a = productButton(first);
-        TextView b = productButton(second);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(40), 1);
-        lp.setMargins(dp(3), dp(3), dp(3), dp(3));
-        row.addView(a, lp);
-        LinearLayout.LayoutParams lp2 = new LinearLayout.LayoutParams(0, dp(40), 1);
-        lp2.setMargins(dp(3), dp(3), dp(3), dp(3));
-        row.addView(b, lp2);
-        parent.addView(row, new LinearLayout.LayoutParams(-1, -2));
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(2), dp(3), dp(2), dp(3));
+        TextView icon = new TextView(this);
+        icon.setText(chatGpt ? "✳" : "✦");
+        icon.setTextSize(27);
+        icon.setTypeface(null, Typeface.BOLD);
+        icon.setTextColor(chatGpt ? Color.rgb(16, 163, 127) : purple);
+        icon.setGravity(Gravity.CENTER);
+        GradientDrawable iconBg = new GradientDrawable();
+        iconBg.setShape(GradientDrawable.OVAL);
+        iconBg.setColor(chatGpt ? Color.rgb(225, 248, 241) : Color.rgb(240, 235, 255));
+        icon.setBackground(iconBg);
+        row.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        TextView first = productButton(chatGpt ? 1 : 2);
+        TextView second = productButton(chatGpt ? 0 : 3);
+        LinearLayout.LayoutParams buttonLp = new LinearLayout.LayoutParams(0, dp(46), 1);
+        buttonLp.leftMargin = dp(8);
+        row.addView(first, buttonLp);
+        LinearLayout.LayoutParams buttonLp2 = new LinearLayout.LayoutParams(0, dp(46), 1);
+        buttonLp2.leftMargin = dp(8);
+        row.addView(second, buttonLp2);
+        return row;
     }
 
     private TextView productButton(int index) {
         TextView button = new TextView(this);
         button.setTag(index);
-        button.setText(PRODUCT_NAMES[index]);
-        button.setTextSize(13);
+        button.setText(PRODUCT_NAMES[index].replace("ChatGPT ", "").replace("Gemini AI ", ""));
+        button.setTextSize(14);
         button.setGravity(Gravity.CENTER);
         button.setMaxLines(1);
         button.setOnClickListener(v -> {
@@ -167,26 +193,19 @@ public class PriceRankingActivity extends Activity {
     private void renderProductTabs() {
         if (productTabs == null) return;
         for (int r = 0; r < productTabs.getChildCount(); r++) {
-            View rowView = productTabs.getChildAt(r);
-            if (!(rowView instanceof LinearLayout)) continue;
-            LinearLayout row = (LinearLayout) rowView;
-            for (int c = 0; c < row.getChildCount(); c++) {
+            LinearLayout row = (LinearLayout) productTabs.getChildAt(r);
+            for (int c = 1; c < row.getChildCount(); c++) {
                 TextView button = (TextView) row.getChildAt(c);
                 int index = (Integer) button.getTag();
+                boolean selected = index == selectedProduct;
                 GradientDrawable bg = new GradientDrawable();
-                bg.setCornerRadius(dp(10));
-                if (index == selectedProduct) {
-                    bg.setColor(Color.rgb(226, 240, 255));
-                    bg.setStroke(dp(1), blue);
-                    button.setTextColor(blue);
-                    button.setTypeface(null, Typeface.BOLD);
-                } else {
-                    bg.setColor(Color.WHITE);
-                    bg.setStroke(dp(1), line);
-                    button.setTextColor(ink);
-                    button.setTypeface(null, Typeface.NORMAL);
-                }
+                bg.setCornerRadius(dp(14));
+                bg.setColor(selected ? Color.rgb(226, 240, 255) : Color.WHITE);
+                bg.setStroke(dp(selected ? 2 : 1), selected ? blue : line);
                 button.setBackground(bg);
+                button.setTextColor(selected ? blue : ink);
+                button.setTypeface(null, selected ? Typeface.BOLD : Typeface.NORMAL);
+                button.setElevation(selected ? dp(2) : 0);
             }
         }
     }
