@@ -25,8 +25,6 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.view.Gravity;
-import android.view.GestureDetector;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.HorizontalScrollView;
@@ -59,14 +57,9 @@ public class PriceRankingActivity extends Activity {
     private TextView currentHeading;
     private View cardNotch;
     private View navShape;
+    private float animatedNotchCenter = -1f;
     private View tableHeader;
     private ScrollView priceScroll;
-    private GestureDetector swipeDetector;
-    private View swipeCard;
-    private float swipeDownX;
-    private float swipeDownY;
-    private float swipeLastX;
-    private boolean horizontalSwipeTracking;
     private boolean changingProduct = false;
     private TextView statusView;
     private ProgressBar progress;
@@ -115,7 +108,8 @@ public class PriceRankingActivity extends Activity {
                 int[] order = {0, 1, 2, 3, 4};
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
-                float cx = w / 2f - dp(160) + dp(64) * (slot + 0.5f);
+                float targetCx = w / 2f - dp(160) + dp(64) * (slot + 0.5f);
+                float cx = animatedNotchCenter >= 0 ? animatedNotchCenter : targetCx;
                 float half = dp(52);
                 Path path = new Path();
                 path.moveTo(0, radius);
@@ -141,7 +135,6 @@ public class PriceRankingActivity extends Activity {
         FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(-1, -1, Gravity.TOP);
         cardLp.bottomMargin = dp(30);
         contentFrame.addView(card, cardLp);
-        swipeCard = card;
 
         currentHeading = new TextView(this);
         currentHeading.setText(PRODUCT_NAMES[selectedProduct].toUpperCase());
@@ -193,9 +186,6 @@ public class PriceRankingActivity extends Activity {
         contentFrame.addView(bottomNav, navLp);
         root.addView(contentFrame, new LinearLayout.LayoutParams(-1, 0, 1));
 
-        swipeDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
-            @Override public boolean onDown(MotionEvent e) { return true; }
-        });
         setContentView(root);
         root.requestApplyInsets();
         renderBottomNavigation();
@@ -698,63 +688,6 @@ public class PriceRankingActivity extends Activity {
         return wrapper;
     }
 
-    @Override public boolean dispatchTouchEvent(MotionEvent event) {
-        if (swipeDetector != null) swipeDetector.onTouchEvent(event);
-        if (swipeCard != null && !changingProduct) {
-            switch (event.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                    swipeDownX = event.getX();
-                    swipeDownY = event.getY();
-                    swipeLastX = swipeDownX;
-                    horizontalSwipeTracking = false;
-                    break;
-                case MotionEvent.ACTION_MOVE:
-                    float dx = event.getX() - swipeDownX;
-                    float dy = event.getY() - swipeDownY;
-                    if (!horizontalSwipeTracking && Math.abs(dx) > dp(10) && Math.abs(dx) > Math.abs(dy) * 1.25f) {
-                        horizontalSwipeTracking = true;
-                    }
-                    if (horizontalSwipeTracking) {
-                        swipeLastX = event.getX();
-                        // Keep the card attached to the finger, with slight resistance near the edge.
-                        float resisted = dx * (Math.abs(dx) > swipeCard.getWidth() * 0.75f ? 0.72f : 0.9f);
-                        swipeCard.setTranslationX(resisted);
-                        swipeCard.setRotationY(Math.max(-3f, Math.min(3f, -resisted / Math.max(1f, swipeCard.getWidth()) * 3f)));
-                    }
-                    break;
-                case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
-                    if (horizontalSwipeTracking) {
-                        float dxEnd = event.getX() - swipeDownX;
-                        float threshold = Math.max(dp(72), swipeCard.getWidth() * 0.22f);
-                        boolean commitSwipe = event.getActionMasked() == MotionEvent.ACTION_UP && Math.abs(dxEnd) > threshold;
-                        if (commitSwipe) {
-                            int direction = dxEnd < 0 ? 1 : -1;
-                            int next = (selectedProduct + (direction > 0 ? 1 : PRODUCT_URLS.length - 1)) % PRODUCT_URLS.length;
-                            float exitX = direction > 0 ? -swipeCard.getWidth() : swipeCard.getWidth();
-                            swipeCard.animate().translationX(exitX).rotationY(direction > 0 ? -3f : 3f)
-                                    .setDuration(150)
-                                    .withEndAction(() -> {
-                                        swipeCard.setTranslationX(direction > 0 ? swipeCard.getWidth() : -swipeCard.getWidth());
-                                        swipeCard.setRotationY(direction > 0 ? 3f : -3f);
-                                        selectProduct(next, direction);
-                                    }).start();
-                        } else {
-                            swipeCard.animate().translationX(0).rotationY(0)
-                                    .setDuration(190)
-                                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f))
-                                    .start();
-                        }
-                        horizontalSwipeTracking = false;
-                        return true;
-                    }
-                    horizontalSwipeTracking = false;
-                    break;
-            }
-        }
-        return super.dispatchTouchEvent(event);
-    }
-
     private FrameLayout makeBottomNavigation() {
         FrameLayout shell = new FrameLayout(this);
         navItems = new LinearLayout(this);
@@ -865,7 +798,21 @@ public class PriceRankingActivity extends Activity {
             floatingActiveIcon.setText(glyph);
             floatingActiveIcon.setTextSize(25);
         }
-        if (navShape != null) navShape.invalidate();
+        if (navShape != null) {
+            float startCenter = animatedNotchCenter;
+            if (startCenter < 0) {
+                startCenter = navShape.getWidth() / 2f - dp(160) + dp(64) * (selectedSlot + 0.5f);
+            }
+            float endCenter = navShape.getWidth() / 2f - dp(160) + dp(64) * (selectedSlot + 0.5f);
+            android.animation.ValueAnimator notchAnimator = android.animation.ValueAnimator.ofFloat(startCenter, endCenter);
+            notchAnimator.setDuration(420);
+            notchAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator(1.7f));
+            notchAnimator.addUpdateListener(animation -> {
+                animatedNotchCenter = (Float) animation.getAnimatedValue();
+                navShape.invalidate();
+            });
+            notchAnimator.start();
+        }
         floatingActiveIcon.post(() -> {
             float centerX = bottomNav.getWidth() / 2f - dp(160) + dp(64) * (targetSlot + 0.5f);
             float targetX = centerX - bottomNav.getWidth() / 2f;
@@ -873,16 +820,10 @@ public class PriceRankingActivity extends Activity {
             floatingActiveIcon.animate().cancel();
             float startX = floatingActiveIcon.getTranslationX();
             floatingActiveIcon.setTranslationX(startX);
-            floatingActiveIcon.setTranslationY(dp(30));
-            floatingActiveIcon.setScaleX(0.72f);
-            floatingActiveIcon.setScaleY(0.72f);
-            floatingActiveIcon.animate()
-                    .translationX(targetX).translationY(0).scaleX(1f).scaleY(1f)
-                    .setDuration(560)
-                    .setInterpolator(new android.view.animation.OvershootInterpolator(1.8f))
-                    .withEndAction(() -> floatingActiveIcon.animate().scaleX(1.04f).scaleY(0.96f)
-                            .setDuration(90).withEndAction(() -> floatingActiveIcon.animate()
-                                    .scaleX(1f).scaleY(1f).setDuration(140).start()).start())
+            floatingActiveIcon.animate().translationX(targetX).translationY(0)
+                    .scaleX(1f).scaleY(1f)
+                    .setDuration(420)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.7f))
                     .start();
         });
     }
@@ -907,19 +848,7 @@ public class PriceRankingActivity extends Activity {
             priceScroll.setVisibility(View.VISIBLE);
             loadPrices();
         }
-        // Slide the new card in from the side opposite to the swipe direction.
-        if (swipeCard != null) {
-            float entryX = direction > 0 ? swipeCard.getWidth() : -swipeCard.getWidth();
-            swipeCard.setTranslationX(entryX);
-            swipeCard.setRotationY(direction > 0 ? 3f : -3f);
-            swipeCard.animate().translationX(0).rotationY(0)
-                    .setDuration(230)
-                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f))
-                    .withEndAction(() -> changingProduct = false)
-                    .start();
-        } else {
-            changingProduct = false;
-        }
+        changingProduct = false;
     }
 
     @Override public void onBackPressed() { super.onBackPressed(); }
