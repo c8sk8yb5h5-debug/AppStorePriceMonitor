@@ -324,6 +324,25 @@ public class PriceRankingActivity extends Activity {
         tableHeader.setVisibility(View.GONE);
         priceScroll.setVisibility(View.VISIBLE);
         rowsContainer.removeAllViews();
+        rowsContainer.setBackground(new Drawable() {
+            private final Paint watermarkPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            private final Drawable watermark = getDrawable(R.drawable.ic_launcher_foreground);
+            @Override public void draw(Canvas canvas) {
+                if (watermark == null) return;
+                android.graphics.Rect b = getBounds();
+                int size = Math.min(dp(220), (int) (Math.min(b.width(), b.height()) * 0.72f));
+                if (size <= 0) return;
+                int left = b.left + (b.width() - size) / 2;
+                int top = b.top + (b.height() - size) / 2;
+                watermark.setBounds(left, top, left + size, top + size);
+                watermark.setAlpha(22);
+                watermark.draw(canvas);
+                watermark.setAlpha(255);
+            }
+            @Override public void setAlpha(int alpha) { watermarkPaint.setAlpha(alpha); }
+            @Override public void setColorFilter(android.graphics.ColorFilter filter) { watermarkPaint.setColorFilter(filter); }
+            @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+        });
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(8), dp(8), dp(8), dp(20));
@@ -737,6 +756,7 @@ public class PriceRankingActivity extends Activity {
             if (card.getBackground() != null) card.getBackground().invalidateSelf();
         }
         if (selectedProduct == 4) showSettingsInCard(); else {
+            rowsContainer.setBackgroundColor(Color.TRANSPARENT);
             statusView.setVisibility(View.VISIBLE);
             tableHeader.setVisibility(View.VISIBLE);
             priceScroll.setVisibility(View.VISIBLE);
