@@ -92,12 +92,12 @@ public class PriceRankingActivity extends Activity {
             @Override public void draw(Canvas canvas) {
                 android.graphics.Rect b = getBounds();
                 float w = b.width(), h = b.height();
-                float radius = dp(30), bulge = dp(25);
+                float radius = dp(30), bulge = dp(40);
                 int[] order = {0, 1, 2, 3, 4};
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
-                float cx = dp(18) + (w - dp(36)) * (slot + 0.5f) / 5f;
-                float half = dp(42);
+                float cx = dp(8) + (w - dp(16)) * (slot + 0.5f) / 5f;
+                float half = dp(52);
                 Path path = new Path();
                 path.moveTo(0, radius);
                 path.quadTo(0, 0, radius, 0);
@@ -107,8 +107,8 @@ public class PriceRankingActivity extends Activity {
                 path.lineTo(w, baseY - dp(30));
                 path.quadTo(w, baseY, w - dp(30), baseY);
                 path.lineTo(cx + half, baseY);
-                path.cubicTo(cx + dp(25), baseY, cx + dp(25), h, cx, h);
-                path.cubicTo(cx - dp(25), h, cx - dp(25), baseY, cx - half, baseY);
+                path.cubicTo(cx + dp(30), baseY, cx + dp(30), h, cx, h);
+                path.cubicTo(cx - dp(30), h, cx - dp(30), baseY, cx - half, baseY);
                 path.lineTo(dp(30), baseY);
                 path.quadTo(0, baseY, 0, baseY - dp(30));
                 path.close();
@@ -120,7 +120,7 @@ public class PriceRankingActivity extends Activity {
             @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
         });
         FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(-1, -1, Gravity.TOP);
-        cardLp.bottomMargin = dp(84);
+        cardLp.bottomMargin = dp(30);
         contentFrame.addView(card, cardLp);
 
         currentHeading = new TextView(this);
@@ -457,7 +457,7 @@ public class PriceRankingActivity extends Activity {
                 super.onDraw(canvas);
                 float w = getWidth(), h = getHeight();
                 if (w <= 0 || h <= 0) return;
-                int[] order = {1, 0, 2, 3, -1};
+                int[] order = {0, 1, 2, 3, 4};
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
                 float cx = dp(18) + (w - dp(36)) * (slot + 0.5f) / 5f;
