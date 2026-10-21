@@ -15,6 +15,8 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.ViewGroup;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -44,6 +46,7 @@ public class MainActivity extends Activity {
     private EditText thresholdInput;
     private EditText rankingUrlInput;
     private TextView status;
+    private GestureDetector swipeDetector;
     private static final int NOTIFICATION_PERMISSION = 1001;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
@@ -51,6 +54,21 @@ public class MainActivity extends Activity {
         createChannel();
         requestNotificationPermission();
         buildUi();
+        swipeDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                float dx = e2.getX() - e1.getX();
+                float dy = e2.getY() - e1.getY();
+                if (Math.abs(dx) > dp(90) && Math.abs(dx) > Math.abs(dy) * 1.25f) {
+                    Intent intent = new Intent(MainActivity.this, PriceRankingActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    startActivity(intent);
+                    finish();
+                    overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
+                    return true;
+                }
+                return false;
+            }
+        });
         scheduleDailyCheck();
         checkForUpdates(false);
     }
@@ -91,6 +109,11 @@ public class MainActivity extends Activity {
         updateStatus();
     }
 
+
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        if (swipeDetector != null) swipeDetector.onTouchEvent(event);
+        return super.dispatchTouchEvent(event);
+    }
 
     private void checkForUpdates(boolean showUpToDate) {
         Toast.makeText(this, "正在检查更新…", Toast.LENGTH_SHORT).show();
