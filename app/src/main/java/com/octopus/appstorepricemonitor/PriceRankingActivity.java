@@ -475,35 +475,44 @@ public class PriceRankingActivity extends Activity {
         if (navShape != null) navShape.invalidate();
         floatingActiveIcon.post(() -> {
             float centerX = bottomNav.getWidth() * (targetSlot + 0.5f) / 5f;
-            float offsetX = centerX - bottomNav.getWidth() / 2f;
+            float targetX = centerX - bottomNav.getWidth() / 2f;
+            // Keep the bubble at its previous horizontal position, then lift it into the new slot.
             floatingActiveIcon.animate().cancel();
-            floatingActiveIcon.setTranslationY(dp(40));
-            floatingActiveIcon.setScaleX(0.58f);
-            floatingActiveIcon.setScaleY(0.58f);
-            floatingActiveIcon.animate().translationX(offsetX).translationY(0).scaleX(1f).scaleY(1f)
-                    .setDuration(520).setInterpolator(new android.view.animation.OvershootInterpolator(1.35f)).start();
+            float startX = floatingActiveIcon.getTranslationX();
+            floatingActiveIcon.setTranslationX(startX);
+            floatingActiveIcon.setTranslationY(dp(30));
+            floatingActiveIcon.setScaleX(0.72f);
+            floatingActiveIcon.setScaleY(0.72f);
+            floatingActiveIcon.animate()
+                    .translationX(targetX).translationY(0).scaleX(1f).scaleY(1f)
+                    .setDuration(560)
+                    .setInterpolator(new android.view.animation.OvershootInterpolator(1.8f))
+                    .withEndAction(() -> floatingActiveIcon.animate().scaleX(1.04f).scaleY(0.96f)
+                            .setDuration(90).withEndAction(() -> floatingActiveIcon.animate()
+                                    .scaleX(1f).scaleY(1f).setDuration(140).start()).start())
+                    .start();
         });
     }
 
     private void selectProduct(int index, int direction) {
         if (index < 0 || index >= PRODUCT_URLS.length || index == selectedProduct || changingProduct) return;
         changingProduct = true;
-        int width = Math.max(priceScroll.getWidth(), dp(280));
-        priceScroll.animate().translationX(-direction * width * 0.28f).alpha(0.55f)
-                .setDuration(150).withEndAction(() -> {
-                    selectedProduct = index;
-                    currentUrl = PRODUCT_URLS[index];
-                    currentHeading.setText(PRODUCT_NAMES[selectedProduct].toUpperCase());
-                    getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString("url", currentUrl).apply();
-                    renderProductTabs();
-                    renderBottomNavigation();
-                    priceScroll.setTranslationX(direction * width * 0.28f);
-                    priceScroll.setAlpha(0.55f);
-                    loadPrices();
-                    priceScroll.animate().translationX(0).alpha(1f).setDuration(260)
-                            .setInterpolator(new android.view.animation.DecelerateInterpolator())
-                            .withEndAction(() -> changingProduct = false).start();
-                }).start();
+        selectedProduct = index;
+        currentUrl = PRODUCT_URLS[index];
+        currentHeading.setText(PRODUCT_NAMES[selectedProduct].toUpperCase());
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString("url", currentUrl).apply();
+        renderProductTabs();
+        renderBottomNavigation();
+        if (navShape != null) navShape.invalidate();
+        if (priceScroll != null && priceScroll.getParent() != null) {
+            View card = (View) priceScroll.getParent();
+            if (card.getBackground() != null) card.getBackground().invalidateSelf();
+        }
+        loadPrices();
+        // No sideways content movement: only the selected navigation bubble performs the jelly lift.
+        priceScroll.animate().alpha(0.94f).setDuration(100).withEndAction(() ->
+                priceScroll.animate().alpha(1f).setDuration(180)
+                        .withEndAction(() -> changingProduct = false).start()).start();
     }
 
     @Override public void onBackPressed() { super.onBackPressed(); }
