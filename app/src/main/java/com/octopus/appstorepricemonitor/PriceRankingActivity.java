@@ -28,12 +28,13 @@ public class PriceRankingActivity extends Activity {
     private static final String PREFS = "price_ranking";
     private static final String DEFAULT_URL = "https://appstoreprice.org/zh/apps/6448311069?plan=1";
     // The four plan URLs are kept in one place so they can be adjusted if the source site changes its plan IDs.
-    private static final String[] PRODUCT_NAMES = {"ChatGPT Go", "ChatGPT Plus", "Gemini AI Pro", "Gemini AI Plus"};
+    private static final String[] PRODUCT_NAMES = {"ChatGPT Plus", "ChatGPT Go", "Gemini AI Pro", "Gemini AI Plus", "设置"};
     private static final String[] PRODUCT_URLS = {
-        "https://appstoreprice.org/zh/apps/6448311069?plan=1",
         "https://appstoreprice.org/zh/apps/6448311069?plan=0",
+        "https://appstoreprice.org/zh/apps/6448311069?plan=1",
         "https://appstoreprice.org/zh/apps/6477489729?plan=0",
-        "https://appstoreprice.org/zh/apps/6477489729?plan=1"
+        "https://appstoreprice.org/zh/apps/6477489729?plan=1",
+        ""
     };
 
     private LinearLayout rowsContainer;
@@ -44,6 +45,7 @@ public class PriceRankingActivity extends Activity {
     private TextView currentHeading;
     private View cardNotch;
     private View navShape;
+    private View tableHeader;
     private ScrollView priceScroll;
     private GestureDetector swipeDetector;
     private boolean changingProduct = false;
@@ -71,7 +73,7 @@ public class PriceRankingActivity extends Activity {
         if (currentUrl == null || !currentUrl.startsWith("https://appstoreprice.org/zh/apps/")) {
             currentUrl = getSharedPreferences(PREFS, MODE_PRIVATE).getString("url", DEFAULT_URL);
         }
-        for (int i = 0; i < PRODUCT_URLS.length; i++) if (PRODUCT_URLS[i].equals(currentUrl)) selectedProduct = i;
+        for (int i = 0; i < PRODUCT_URLS.length - 1; i++) if (PRODUCT_URLS[i].equals(currentUrl)) selectedProduct = i;
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -91,7 +93,7 @@ public class PriceRankingActivity extends Activity {
                 android.graphics.Rect b = getBounds();
                 float w = b.width(), h = b.height();
                 float radius = dp(30), bulge = dp(25);
-                int[] order = {1, 0, 2, 3, -1};
+                int[] order = {0, 1, 2, 3, 4};
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
                 float cx = w * (slot + 0.5f) / 5f;
@@ -153,7 +155,8 @@ public class PriceRankingActivity extends Activity {
         table.setOrientation(LinearLayout.VERTICAL);
         table.setBackgroundColor(Color.rgb(157, 174, 111));
         table.setMinimumWidth(getResources().getDisplayMetrics().widthPixels - dp(48));
-        table.addView(makeHeader());
+        tableHeader = makeHeader();
+        table.addView(tableHeader);
         rowsContainer = new LinearLayout(this);
         rowsContainer.setOrientation(LinearLayout.VERTICAL);
         table.addView(rowsContainer, new LinearLayout.LayoutParams(-1, -2));
@@ -301,7 +304,78 @@ public class PriceRankingActivity extends Activity {
         return v;
     }
 
+
+    private void showSettingsInCard() {
+        statusView.setVisibility(View.GONE);
+        tableHeader.setVisibility(View.GONE);
+        priceScroll.setVisibility(View.VISIBLE);
+        rowsContainer.removeAllViews();
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(8), dp(8), dp(8), dp(20));
+        TextView label = new TextView(this);
+        label.setText("重大变动阈值（百分比）");
+        label.setTextSize(15);
+        label.setTextColor(ink);
+        panel.addView(label);
+        android.widget.EditText threshold = new android.widget.EditText(this);
+        threshold.setSingleLine(true);
+        threshold.setInputType(8194);
+        float saved = getSharedPreferences(PriceMonitorWorker.PREFS, MODE_PRIVATE).getFloat(PriceMonitorWorker.THRESHOLD_KEY, 5f);
+        threshold.setText(String.valueOf((int) saved));
+        threshold.setTextColor(ink);
+        panel.addView(threshold, new LinearLayout.LayoutParams(-1, dp(48)));
+        addSettingsButton(panel, "保存设置并启用每日监控", true, () -> {
+            float value;
+            try { value = Float.parseFloat(threshold.getText().toString().trim()); } catch (Exception e) { value = 0; }
+            if (value < 1 || value > 100) {
+                android.widget.Toast.makeText(this, "阈值请设置为 1 到 100", android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+            org.json.JSONArray urls = new org.json.JSONArray();
+            urls.put("https://appstoreprice.org/zh/apps/6448311069");
+            urls.put("https://appstoreprice.org/zh/apps/6477489729");
+            getSharedPreferences(PriceMonitorWorker.PREFS, MODE_PRIVATE).edit()
+                    .putString(PriceMonitorWorker.URLS_KEY, urls.toString())
+                    .putFloat(PriceMonitorWorker.THRESHOLD_KEY, value).apply();
+            android.widget.Toast.makeText(this, "设置已保存，每日监控已启用", android.widget.Toast.LENGTH_SHORT).show();
+        });
+        addSettingsButton(panel, "立即检查一次", false, () -> {
+            androidx.work.WorkManager.getInstance(this).enqueue(androidx.work.OneTimeWorkRequest.from(PriceMonitorWorker.class));
+            android.widget.Toast.makeText(this, "已提交价格检查任务", android.widget.Toast.LENGTH_SHORT).show();
+        });
+        String version = "未知";
+        try {
+            android.content.pm.PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            if (info.versionName != null) version = info.versionName;
+        } catch (Exception ignored) {}
+        addSettingsButton(panel, "检查应用更新（v" + version + "）", false, () -> {
+            try { startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/c8sk8yb5h5-debug/AppStorePriceMonitor/releases/latest"))); }
+            catch (Exception e) { android.widget.Toast.makeText(this, "无法打开更新页面", android.widget.Toast.LENGTH_SHORT).show(); }
+        });
+        rowsContainer.addView(panel);
+    }
+
+    private void addSettingsButton(LinearLayout parent, String text, boolean primary, Runnable action) {
+        TextView button = new TextView(this);
+        button.setText(text);
+        button.setTextSize(14);
+        button.setGravity(Gravity.CENTER);
+        button.setTextColor(primary ? Color.WHITE : ink);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(14));
+        bg.setColor(primary ? Color.rgb(40, 90, 45) : Color.rgb(238, 239, 218));
+        if (!primary) bg.setStroke(dp(1), line);
+        button.setBackground(bg);
+        button.setElevation(dp(1));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(48));
+        lp.topMargin = dp(10);
+        parent.addView(button, lp);
+        button.setOnClickListener(v -> action.run());
+    }
+
     private void loadPrices() {
+        if (selectedProduct == 4) return;
         statusView.setText("正在更新 " + PRODUCT_NAMES[selectedProduct] + " 价格数据…");
         progress.setVisibility(View.VISIBLE);
         progress.setProgress(12);
@@ -387,13 +461,13 @@ public class PriceRankingActivity extends Activity {
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
                 float cx = w * (slot + 0.5f) / 5f;
-                float notch = dp(43), top = dp(9), r = dp(36);
+                float notch = dp(37), top = dp(9), r = dp(36);
                 Path path = new Path();
                 path.moveTo(0, top + r);
                 path.quadTo(0, top, r, top);
                 path.lineTo(Math.max(r, cx - notch), top);
-                path.cubicTo(cx - dp(22), top, cx - dp(22), top + dp(24), cx, top + dp(24));
-                path.cubicTo(cx + dp(22), top + dp(24), cx + dp(22), top, cx + notch, top);
+                path.cubicTo(cx - dp(20), top, cx - dp(20), top + dp(22), cx, top + dp(22));
+                path.cubicTo(cx + dp(20), top + dp(22), cx + dp(20), top, cx + notch, top);
                 path.lineTo(w - r, top);
                 path.quadTo(w, top, w, top + r);
                 path.lineTo(w, h - r);
@@ -412,7 +486,7 @@ public class PriceRankingActivity extends Activity {
 
         String[] symbols = {"✳", "G", "✦", "✧", "⚙"};
         String[] descriptions = {"ChatGPT Plus", "ChatGPT Go", "Gemini Pro", "Gemini Plus", "设置"};
-        int[] productIndex = {1, 0, 2, 3, -1};
+        int[] productIndex = {0, 1, 2, 3, 4};
         for (int i = 0; i < symbols.length; i++) {
             final int index = productIndex[i];
             LinearLayout item = new LinearLayout(this);
@@ -428,12 +502,7 @@ public class PriceRankingActivity extends Activity {
             View dot = new View(this);
             item.addView(dot, new LinearLayout.LayoutParams(dp(4), dp(4)));
             item.setOnClickListener(v -> {
-                if (index < 0) {
-                    startActivity(new Intent(this, MainActivity.class));
-                    overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
-                } else {
-                    selectProduct(index, index >= selectedProduct ? 1 : -1);
-                }
+                selectProduct(index, index >= selectedProduct ? 1 : -1);
             });
             navItems.addView(item, new LinearLayout.LayoutParams(0, -1, 1));
         }
@@ -498,17 +567,21 @@ public class PriceRankingActivity extends Activity {
         if (index < 0 || index >= PRODUCT_URLS.length || index == selectedProduct || changingProduct) return;
         changingProduct = true;
         selectedProduct = index;
-        currentUrl = PRODUCT_URLS[index];
+        if (index < 4) currentUrl = PRODUCT_URLS[index];
         currentHeading.setText(PRODUCT_NAMES[selectedProduct].toUpperCase());
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString("url", currentUrl).apply();
-        renderProductTabs();
+        if (selectedProduct < 4) getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString("url", currentUrl).apply();
         renderBottomNavigation();
         if (navShape != null) navShape.invalidate();
         if (priceScroll != null && priceScroll.getParent() != null) {
             View card = (View) priceScroll.getParent();
             if (card.getBackground() != null) card.getBackground().invalidateSelf();
         }
-        loadPrices();
+        if (selectedProduct == 4) showSettingsInCard(); else {
+            statusView.setVisibility(View.VISIBLE);
+            tableHeader.setVisibility(View.VISIBLE);
+            priceScroll.setVisibility(View.VISIBLE);
+            loadPrices();
+        }
         // No sideways content movement: only the selected navigation bubble performs the jelly lift.
         priceScroll.animate().alpha(0.94f).setDuration(100).withEndAction(() ->
                 priceScroll.animate().alpha(1f).setDuration(180)
