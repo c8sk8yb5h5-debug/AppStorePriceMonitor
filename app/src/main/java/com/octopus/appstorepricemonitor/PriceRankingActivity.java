@@ -824,7 +824,7 @@ public class PriceRankingActivity extends Activity {
             item.setOrientation(LinearLayout.VERTICAL);
             TextView icon;
             if (i < 2) {
-                icon = new ChatGptNavIcon(i == 0 ? "＋" : "G");
+                icon = new ChatGptNavIcon(i == 0);
             } else {
                 icon = new TextView(this);
                 icon.setText(symbols[i]);
@@ -850,7 +850,7 @@ public class PriceRankingActivity extends Activity {
             navItems.addView(item, new LinearLayout.LayoutParams(dp(64), -1));
         }
 
-        floatingActiveIcon = new ChatGptNavIcon("＋");
+        floatingActiveIcon = new ChatGptNavIcon(false);
         floatingActiveIcon.setGravity(Gravity.CENTER);
         floatingActiveIcon.setTextSize(25);
         floatingActiveIcon.setTextColor(Color.rgb(18, 122, 92));
@@ -884,7 +884,7 @@ public class PriceRankingActivity extends Activity {
         String glyph = symbols[selectedSlot];
         final int targetSlot = selectedSlot;
         if (targetSlot < 2) {
-            ((ChatGptNavIcon) floatingActiveIcon).setBadge(targetSlot == 0 ? "＋" : "G");
+            ((ChatGptNavIcon) floatingActiveIcon).setPlusStyle(targetSlot == 0);
             ((ChatGptNavIcon) floatingActiveIcon).setLogoVisible(true);
             floatingActiveIcon.setText("");
         } else {
@@ -959,44 +959,87 @@ public class PriceRankingActivity extends Activity {
     }
 
     private final class ChatGptNavIcon extends TextView {
-        private final Paint logoPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private String badge;
+        private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private boolean plusStyle;
         private boolean logoVisible = true;
-        ChatGptNavIcon(String badge) {
+
+        ChatGptNavIcon(boolean plusStyle) {
             super(PriceRankingActivity.this);
-            this.badge = badge;
+            this.plusStyle = plusStyle;
             setGravity(Gravity.CENTER);
             setText("");
         }
-        void setBadge(String value) { badge = value; invalidate(); }
-        void setLogoVisible(boolean value) { logoVisible = value; invalidate(); }
+
+        void setPlusStyle(boolean value) {
+            if (plusStyle != value) {
+                plusStyle = value;
+                invalidate();
+            }
+        }
+
+        void setLogoVisible(boolean value) {
+            logoVisible = value;
+            invalidate();
+        }
+
+        private Path makeCloverPetal() {
+            float scale = getResources().getDisplayMetrics().density;
+            Path petal = new Path();
+            // Rounded petal based on the selected four-leaf-clover concept.
+            petal.moveTo(-2.0f * scale, 1.0f * scale);
+            petal.cubicTo(-4.2f * scale, -1.4f * scale,
+                    -7.1f * scale, -4.0f * scale,
+                    -7.1f * scale, -9.0f * scale);
+            petal.cubicTo(-7.1f * scale, -13.5f * scale,
+                    -3.8f * scale, -17.0f * scale,
+                    0, -17.0f * scale);
+            petal.cubicTo(3.8f * scale, -17.0f * scale,
+                    7.1f * scale, -13.5f * scale,
+                    7.1f * scale, -9.0f * scale);
+            petal.cubicTo(7.1f * scale, -4.0f * scale,
+                    4.2f * scale, -1.4f * scale,
+                    2.0f * scale, 1.0f * scale);
+            petal.cubicTo(0.8f * scale, 2.0f * scale,
+                    -0.8f * scale, 2.0f * scale,
+                    -2.0f * scale, 1.0f * scale);
+            petal.close();
+            return petal;
+        }
+
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             if (!logoVisible) return;
-            float cx = getWidth() / 2f, cy = getHeight() / 2f;
-            float radius = dp(5), ring = dp(4);
-            logoPaint.setStyle(Paint.Style.STROKE);
-            logoPaint.setStrokeWidth(dp(2));
-            logoPaint.setStrokeCap(Paint.Cap.ROUND);
-            logoPaint.setStrokeJoin(Paint.Join.ROUND);
-            logoPaint.setColor(Color.rgb(16, 163, 127));
-            for (int i = 0; i < 6; i++) {
-                double a = Math.toRadians(i * 60);
-                float x = cx + (float)Math.cos(a) * ring;
-                float y = cy + (float)Math.sin(a) * ring;
-                canvas.drawCircle(x, y, radius, logoPaint);
+
+            int save = canvas.save();
+            canvas.translate(getWidth() / 2f, getHeight() / 2f);
+            float scale = getResources().getDisplayMetrics().density;
+            canvas.scale(0.92f, 0.92f);
+            iconPaint.setColor(Color.rgb(16, 163, 127));
+            iconPaint.setStrokeJoin(Paint.Join.ROUND);
+            iconPaint.setStrokeCap(Paint.Cap.ROUND);
+
+            Path petal = makeCloverPetal();
+            if (plusStyle) {
+                // Plus: four softly rounded filled petals with a clear center seam.
+                iconPaint.setStyle(Paint.Style.FILL);
+                for (int i = 0; i < 4; i++) {
+                    int leafSave = canvas.save();
+                    canvas.rotate(i * 90f);
+                    canvas.drawPath(petal, iconPaint);
+                    canvas.restoreToCount(leafSave);
+                }
+            } else {
+                // Go: matching four-petal silhouette, simplified to a fine outline.
+                iconPaint.setStyle(Paint.Style.STROKE);
+                iconPaint.setStrokeWidth(2.25f * scale);
+                for (int i = 0; i < 4; i++) {
+                    int leafSave = canvas.save();
+                    canvas.rotate(i * 90f);
+                    canvas.drawPath(petal, iconPaint);
+                    canvas.restoreToCount(leafSave);
+                }
             }
-            logoPaint.setStyle(Paint.Style.FILL);
-            logoPaint.setColor(Color.rgb(16, 163, 127));
-            canvas.drawCircle(cx, cy, dp(2), logoPaint);
-            float bx = cx + dp(9), by = cy + dp(9);
-            logoPaint.setColor(Color.rgb(255, 220, 122));
-            canvas.drawCircle(bx, by, dp(5), logoPaint);
-            logoPaint.setColor(Color.rgb(27, 37, 20));
-            logoPaint.setTextAlign(Paint.Align.CENTER);
-            logoPaint.setTextSize(dp(7));
-            logoPaint.setTypeface(Typeface.DEFAULT_BOLD);
-            canvas.drawText(badge, bx, by + dp(2), logoPaint);
+            canvas.restoreToCount(save);
         }
     }
 
