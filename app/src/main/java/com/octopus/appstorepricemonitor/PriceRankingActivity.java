@@ -8,6 +8,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.GestureDetector;
@@ -84,10 +85,37 @@ public class PriceRankingActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(12), dp(12), dp(12), dp(64));
-        GradientDrawable cardBg = new GradientDrawable();
-        cardBg.setColor(Color.rgb(157, 174, 111));
-        cardBg.setCornerRadius(dp(30));
-        card.setBackground(cardBg);
+        card.setBackground(new Drawable() {
+            private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            @Override public void draw(Canvas canvas) {
+                android.graphics.Rect b = getBounds();
+                float w = b.width(), h = b.height();
+                float radius = dp(30), bulge = dp(38);
+                int[] order = {1, 0, 2, 3, -1};
+                int slot = 0;
+                for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
+                float cx = w * (slot + 0.5f) / 5f;
+                float half = dp(48);
+                Path path = new Path();
+                path.moveTo(0, radius);
+                path.quadTo(0, 0, radius, 0);
+                path.lineTo(w - radius, 0);
+                path.quadTo(w, 0, w, radius);
+                path.lineTo(w, h - dp(30));
+                path.quadTo(w, h, w - dp(30), h);
+                path.lineTo(cx + half, h);
+                path.cubicTo(cx + dp(22), h, cx + dp(26), h + bulge, cx, h + bulge);
+                path.cubicTo(cx - dp(26), h + bulge, cx - dp(22), h, cx - half, h);
+                path.lineTo(dp(30), h);
+                path.quadTo(0, h, 0, h - dp(30));
+                path.close();
+                paint.setColor(Color.rgb(157, 174, 111));
+                canvas.drawPath(path, paint);
+            }
+            @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); }
+            @Override public void setColorFilter(android.graphics.ColorFilter colorFilter) { paint.setColorFilter(colorFilter); }
+            @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+        });
         FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(-1, -1);
         cardLp.bottomMargin = dp(52);
         contentFrame.addView(card, cardLp);
@@ -133,15 +161,6 @@ public class PriceRankingActivity extends Activity {
         priceScroll.setFillViewport(false);
         priceScroll.addView(horizontal);
         card.addView(priceScroll, new LinearLayout.LayoutParams(-1, 0, 1));
-
-        cardNotch = new View(this);
-        GradientDrawable notchBg = new GradientDrawable();
-        notchBg.setShape(GradientDrawable.OVAL);
-        notchBg.setColor(Color.rgb(157, 174, 111));
-        cardNotch.setBackground(notchBg);
-        FrameLayout.LayoutParams notchLp = new FrameLayout.LayoutParams(dp(104), dp(100), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        notchLp.bottomMargin = dp(2);
-        contentFrame.addView(cardNotch, notchLp);
 
         bottomNav = makeBottomNavigation();
         FrameLayout.LayoutParams navLp = new FrameLayout.LayoutParams(-1, dp(112), Gravity.BOTTOM);
@@ -367,13 +386,13 @@ public class PriceRankingActivity extends Activity {
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
                 float cx = w * (slot + 0.5f) / 5f;
-                float notch = dp(35), top = dp(13), r = dp(36);
+                float notch = dp(49), top = dp(13), r = dp(36);
                 Path path = new Path();
                 path.moveTo(0, top + r);
                 path.quadTo(0, top, r, top);
                 path.lineTo(Math.max(r, cx - notch), top);
-                path.cubicTo(cx - notch * 0.35f, top, cx - notch * 0.65f, h - dp(5), cx, h - dp(5));
-                path.cubicTo(cx + notch * 0.65f, h - dp(5), cx + notch * 0.35f, top, cx + notch, top);
+                path.cubicTo(cx - dp(25), top, cx - dp(27), h - dp(3), cx, h - dp(3));
+                path.cubicTo(cx + dp(27), h - dp(3), cx + dp(25), top, cx + notch, top);
                 path.lineTo(w - r, top);
                 path.quadTo(w, top, w, top + r);
                 path.lineTo(w, h - r);
@@ -453,16 +472,6 @@ public class PriceRankingActivity extends Activity {
         floatingActiveIcon.setText(glyph);
         final int targetSlot = selectedSlot;
         if (navShape != null) navShape.invalidate();
-        if (cardNotch != null) {
-            cardNotch.post(() -> {
-                int frameWidth = ((View) cardNotch.getParent()).getWidth();
-                float centerX = frameWidth * (targetSlot + 0.5f) / 5f;
-                FrameLayout.LayoutParams notchParams = (FrameLayout.LayoutParams) cardNotch.getLayoutParams();
-                notchParams.gravity = Gravity.BOTTOM | Gravity.LEFT;
-                notchParams.leftMargin = Math.round(centerX - dp(52));
-                cardNotch.setLayoutParams(notchParams);
-            });
-        }
         floatingActiveIcon.post(() -> {
             float centerX = bottomNav.getWidth() * (targetSlot + 0.5f) / 5f;
             float offsetX = centerX - bottomNav.getWidth() / 2f;
