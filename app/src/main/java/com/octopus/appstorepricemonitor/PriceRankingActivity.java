@@ -347,12 +347,7 @@ public class PriceRankingActivity extends Activity {
         monitorCard.setPadding(0, dp(6), 0, dp(8));
         monitorCard.setBackgroundColor(Color.TRANSPARENT);
 
-        TextView monitorTitle = new TextView(this);
-        monitorTitle.setText("价格变动提醒");
-        monitorTitle.setTextSize(17);
-        monitorTitle.setTextColor(Color.rgb(39, 55, 35));
-        monitorTitle.setTypeface(null, Typeface.BOLD);
-        monitorCard.addView(monitorTitle);
+
 
 
 
@@ -666,6 +661,7 @@ public class PriceRankingActivity extends Activity {
         if (favorite) capsule.setStroke(dp(1), Color.rgb(105, 124, 70));
         item.setBackground(capsule);
         item.setElevation(favorite ? dp(3) : 0);
+        item.setElevation(favorite ? dp(3) : 0);
 
         item.addView(cell(String.valueOf(row.rank), 0.55f, Gravity.CENTER, false, ink));
         TextView countryCell = cell((favorite ? "★ " : "☆ ") + row.country, 1.30f, Gravity.START, false, ink);
@@ -740,6 +736,7 @@ public class PriceRankingActivity extends Activity {
             capsule.setCornerRadius(dp(48));
             if (favorite) capsule.setStroke(dp(1), Color.rgb(105, 124, 70));
             item.setBackground(capsule);
+            item.setElevation(favorite ? dp(3) : 0);
         }
     }
 
@@ -890,10 +887,10 @@ public class PriceRankingActivity extends Activity {
             floatingActiveIcon.setTranslationX(startX);
             floatingActiveIcon.animate().translationX(targetX).translationY(-dp(8))
                     .scaleX(1.10f).scaleY(0.90f)
-                    .setDuration(250)
+                    .setDuration(240)
                     .setInterpolator(new android.view.animation.OvershootInterpolator(1.5f))
                     .withEndAction(() -> floatingActiveIcon.animate().translationY(-dp(5))
-                            .scaleX(1f).scaleY(1f).setDuration(190)
+                            .scaleX(1f).scaleY(1f).setDuration(180)
                             .setInterpolator(new android.view.animation.OvershootInterpolator(1.4f)).start())
                     .start();
         });
