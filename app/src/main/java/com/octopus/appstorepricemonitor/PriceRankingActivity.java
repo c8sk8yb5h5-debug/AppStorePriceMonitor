@@ -912,6 +912,135 @@ public class PriceRankingActivity extends Activity {
         return bg;
     }
 
+    private final class LiquidThresholdView extends View {
+        private final Paint liquidPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path fillPath = new Path();
+        private final Path borderPath = new Path();
+        private int value;
+        private float wavePhase;
+        private float waveAmplitude;
+        private boolean tracking;
+
+        LiquidThresholdView(Activity context, int initialValue) {
+            super(context);
+            value = Math.max(1, Math.min(100, initialValue));
+            waveAmplitude = dp(2);
+            setFocusable(true);
+            setClickable(true);
+            setContentDescription("液体胶囊，拖动调整价格变动阈值");
+        }
+
+        int getValue() { return value; }
+
+        private void updateFromTouch(float x) {
+            int next = Math.max(1, Math.min(100, Math.round(x * 100f / Math.max(1, getWidth()))));
+            value = next;
+            wavePhase += 0.72f;
+            waveAmplitude = tracking ? dp(3) : dp(2);
+            invalidate();
+        }
+
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float w = getWidth();
+            float h = getHeight();
+            if (w <= 0 || h <= 0) return;
+            float radius = h / 2f;
+            android.graphics.RectF bounds = new android.graphics.RectF(0, 0, w, h);
+
+            // Translucent white vessel, matching the other capsule controls.
+            liquidPaint.setStyle(Paint.Style.FILL);
+            liquidPaint.setColor(Color.argb(179, 255, 255, 255));
+            canvas.drawRoundRect(bounds, radius, radius, liquidPaint);
+
+            int save = canvas.save();
+            Path clip = new Path();
+            clip.addRoundRect(bounds, radius, radius, Path.Direction.CW);
+            canvas.clipPath(clip);
+
+            float fillX = Math.max(radius * 0.6f, w * value / 100f);
+            float amp = waveAmplitude;
+            float sway = (float) Math.sin(wavePhase) * amp;
+            float sway2 = (float) Math.sin(wavePhase + 1.45f) * amp;
+            fillPath.reset();
+            fillPath.moveTo(0, 0);
+            fillPath.lineTo(fillX - amp, 0);
+            fillPath.cubicTo(fillX + sway, h * 0.22f, fillX - amp + sway2, h * 0.34f, fillX + sway, h * 0.50f);
+            fillPath.cubicTo(fillX + amp + sway2, h * 0.67f, fillX - sway, h * 0.82f, fillX - amp, h);
+            fillPath.lineTo(0, h);
+            fillPath.close();
+            liquidPaint.setColor(Color.argb(218, 40, 90, 45));
+            canvas.drawPath(fillPath, liquidPaint);
+
+            // Moving highlight across the liquid edge creates a soft fluid shimmer.
+            float edge = Math.min(w - dp(2), fillX);
+            borderPath.reset();
+            borderPath.moveTo(edge - dp(6), h * 0.30f + sway);
+            borderPath.cubicTo(edge - dp(1), h * 0.40f + sway2, edge + dp(1), h * 0.60f - sway, edge - dp(4), h * 0.72f - sway2);
+            liquidPaint.setStyle(Paint.Style.STROKE);
+            liquidPaint.setStrokeWidth(dp(1));
+            liquidPaint.setStrokeCap(Paint.Cap.ROUND);
+            liquidPaint.setColor(Color.argb(105, 255, 255, 255));
+            canvas.drawPath(borderPath, liquidPaint);
+            liquidPaint.setStyle(Paint.Style.FILL);
+            canvas.restoreToCount(save);
+
+            textPaint.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+            textPaint.setTextSize(dp(18));
+            textPaint.setTextAlign(Paint.Align.LEFT);
+            textPaint.setColor(value >= 42 ? Color.WHITE : Color.rgb(39, 55, 35));
+            Paint.FontMetrics fm = textPaint.getFontMetrics();
+            float textY = h / 2f - (fm.ascent + fm.descent) / 2f;
+            canvas.drawText(value + "%", dp(16), textY, textPaint);
+
+            liquidPaint.setStyle(Paint.Style.STROKE);
+            liquidPaint.setStrokeWidth(dp(1));
+            liquidPaint.setColor(Color.argb(65, 39, 55, 35));
+            canvas.drawRoundRect(bounds, radius, radius, liquidPaint);
+            liquidPaint.setStyle(Paint.Style.FILL);
+        }
+
+        @Override public boolean onTouchEvent(MotionEvent event) {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    tracking = true;
+                    if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
+                    updateFromTouch(event.getX());
+                    animate().cancel();
+                    animate().scaleX(1.01f).scaleY(1.035f).setDuration(100).start();
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    tracking = true;
+                    updateFromTouch(event.getX());
+                    return true;
+                case MotionEvent.ACTION_UP:
+                    updateFromTouch(event.getX());
+                    tracking = false;
+                    waveAmplitude = dp(1);
+                    postInvalidateOnAnimation();
+                    animate().scaleX(1f).scaleY(1f).setDuration(220)
+                            .setInterpolator(new android.view.animation.OvershootInterpolator(1.25f)).start();
+                    if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
+                    performClick();
+                    return true;
+                case MotionEvent.ACTION_CANCEL:
+                    tracking = false;
+                    waveAmplitude = dp(1);
+                    if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
+                    animate().scaleX(1f).scaleY(1f).setDuration(160).start();
+                    invalidate();
+                    return true;
+            }
+            return true;
+        }
+
+        @Override public boolean performClick() {
+            super.performClick();
+            return true;
+        }
+    }
+
     private final class ChatGptNavIcon extends TextView {
         private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private boolean plusStyle;
