@@ -1010,10 +1010,17 @@ public class PriceRankingActivity extends Activity {
             textPaint.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
             textPaint.setTextSize(dp(18));
             textPaint.setTextAlign(Paint.Align.LEFT);
-            textPaint.setColor(value >= 42 ? Color.WHITE : Color.rgb(39, 55, 35));
             Paint.FontMetrics fm = textPaint.getFontMetrics();
             float textY = h / 2f - (fm.ascent + fm.descent) / 2f;
-            canvas.drawText(value + "%", dp(16), textY, textPaint);
+            String label = value + "%";
+            // Draw the label in two clipped passes so it stays readable across the moving liquid edge.
+            textPaint.setColor(Color.rgb(39, 55, 35));
+            canvas.drawText(label, dp(16), textY, textPaint);
+            int textSave = canvas.save();
+            canvas.clipRect(0, 0, fillX, h);
+            textPaint.setColor(Color.WHITE);
+            canvas.drawText(label, dp(16), textY, textPaint);
+            canvas.restoreToCount(textSave);
 
             liquidPaint.setStyle(Paint.Style.STROKE);
             liquidPaint.setStrokeWidth(dp(1));
