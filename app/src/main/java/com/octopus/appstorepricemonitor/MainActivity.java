@@ -39,6 +39,7 @@ import org.json.JSONArray;
 public class MainActivity extends Activity {
     private EditText urlsInput;
     private EditText thresholdInput;
+    private EditText rankingUrlInput;
     private TextView status;
     private static final int NOTIFICATION_PERMISSION = 1001;
 
@@ -61,6 +62,13 @@ public class MainActivity extends Activity {
         urlsInput = new EditText(this); urlsInput.setMinLines(4); urlsInput.setGravity(0x00800003 | 0x00000010); urlsInput.setText("https://appstoreprice.org/zh/apps/6448311069\nhttps://appstoreprice.org/zh/apps/6477489729"); urlsInput.setHint("https://appstoreprice.org/zh/apps/应用ID"); root.addView(urlsInput, new LinearLayout.LayoutParams(-1, dp(140)));
         TextView thresholdLabel = new TextView(this); thresholdLabel.setText("重大变动阈值（百分比）"); thresholdLabel.setTextSize(15); thresholdLabel.setTextColor(0xFF172033); addSpace(root, 16); root.addView(thresholdLabel);
         thresholdInput = new EditText(this); thresholdInput.setInputType(8194); thresholdInput.setText("5"); thresholdInput.setHint("例如 5 表示 5%"); root.addView(thresholdInput, new LinearLayout.LayoutParams(-1, dp(52)));
+        TextView rankingLabel = new TextView(this); rankingLabel.setText("价格排行页面"); rankingLabel.setTextSize(15); rankingLabel.setTextColor(0xFF172033); addSpace(root, 16); root.addView(rankingLabel);
+        rankingUrlInput = new EditText(this);
+        rankingUrlInput.setSingleLine(true);
+        rankingUrlInput.setText(getSharedPreferences("price_ranking", MODE_PRIVATE).getString("url", "https://appstoreprice.org/zh/apps/6448311069?plan=1"));
+        rankingUrlInput.setHint("AppStorePrice.org 应用链接");
+        root.addView(rankingUrlInput, new LinearLayout.LayoutParams(-1, dp(52)));
+        Button ranking = new Button(this); ranking.setText("查看各地区价格排行"); root.addView(ranking, new LinearLayout.LayoutParams(-1, dp(52)));
         Button save = new Button(this); save.setText("保存设置并启用每日监控"); addSpace(root, 16); root.addView(save, new LinearLayout.LayoutParams(-1, dp(52)));
         Button check = new Button(this); check.setText("立即检查一次"); root.addView(check, new LinearLayout.LayoutParams(-1, dp(52)));
         Button update = new Button(this); update.setText("检查应用更新"); root.addView(update, new LinearLayout.LayoutParams(-1, dp(52)));
@@ -68,6 +76,7 @@ public class MainActivity extends Activity {
         TextView caveat = new TextView(this); caveat.setText("注意：数据通过网页表格解析，网站结构变化可能导致读取失败。价格以当地货币比较，人民币折算波动不会单独触发提醒。后台检查频率受 Android / 鸿蒙兼容环境调度与省电策略影响。"); caveat.setTextSize(12); caveat.setTextColor(0xFF777F8B); addSpace(root, 16); root.addView(caveat);
         setContentView(root);
         save.setOnClickListener(v -> saveSettings());
+        ranking.setOnClickListener(v -> openPriceRanking());
         check.setOnClickListener(v -> { saveSettings(); WorkManager.getInstance(this).enqueue(OneTimeWorkRequest.from(PriceMonitorWorker.class)); status.setText("已提交立即检查任务。首次成功检查只会记录价格基线。"); });
         update.setOnClickListener(v -> checkForUpdates(true));
         updateStatus();
@@ -209,6 +218,19 @@ public class MainActivity extends Activity {
                 });
             }
         }).start();
+    }
+
+    private void openPriceRanking() {
+        String url = rankingUrlInput.getText().toString().trim();
+        if (!url.matches("https://appstoreprice\\.org/zh/apps/[0-9]+\\?plan=[0-9]+") &&
+            !url.matches("https://appstoreprice\\.org/zh/apps/[0-9]+")) {
+            Toast.makeText(this, "请输入有效的 AppStorePrice.org 应用页面链接", Toast.LENGTH_LONG).show();
+            return;
+        }
+        getSharedPreferences("price_ranking", MODE_PRIVATE).edit().putString("url", url).apply();
+        Intent intent = new Intent(this, PriceRankingActivity.class);
+        intent.putExtra("url", url);
+        startActivity(intent);
     }
 
     private void saveSettings() {
