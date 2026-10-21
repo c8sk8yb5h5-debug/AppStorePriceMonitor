@@ -108,6 +108,7 @@ public class PriceRankingActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(12), 0, dp(12), dp(64));
+        card.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         card.setBackground(new Drawable() {
             private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
             @Override public void draw(Canvas canvas) {
@@ -136,7 +137,9 @@ public class PriceRankingActivity extends Activity {
                 path.quadTo(0, baseY, 0, baseY - dp(30));
                 path.close();
                 paint.setColor(Color.rgb(157, 174, 111));
+                paint.setShadowLayer(dp(8), 0, dp(4), 0x33000000);
                 canvas.drawPath(path, paint);
+                paint.clearShadowLayer();
             }
             @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); }
             @Override public void setColorFilter(android.graphics.ColorFilter colorFilter) { paint.setColorFilter(colorFilter); }
@@ -150,19 +153,17 @@ public class PriceRankingActivity extends Activity {
         currentHeading = new TextView(this);
         currentHeading.setText(PRODUCT_NAMES[selectedProduct].toUpperCase());
         currentHeading.setTextSize(52);
-        currentHeading.setTextColor(Color.rgb(39, 55, 35));
+        currentHeading.setTextColor(Color.WHITE);
         currentHeading.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
         currentHeading.setGravity(Gravity.CENTER_VERTICAL);
         currentHeading.setSingleLine(true);
         currentHeading.setPadding(dp(10), dp(2), 0, 0);
         card.addView(currentHeading, new LinearLayout.LayoutParams(-1, dp(72)));
-        View titleDivider = new View(this);
-        titleDivider.setBackgroundColor(Color.rgb(177, 191, 137));
-        card.addView(titleDivider, new LinearLayout.LayoutParams(-1, dp(1)));
+        // Decorative title divider removed.
 
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
-        card.addView(progress, new LinearLayout.LayoutParams(-1, dp(2)));
+        card.addView(progress, new LinearLayout.LayoutParams(-1, dp(0)));
         statusView = new TextView(this);
         statusView.setText("正在读取全球价格…");
         statusView.setTextSize(11);
@@ -276,7 +277,7 @@ public class PriceRankingActivity extends Activity {
                 int index = (Integer) button.getTag();
                 boolean selected = index == selectedProduct;
                 GradientDrawable bg = new GradientDrawable();
-                bg.setCornerRadius(dp(14));
+                bg.setCornerRadius(dp(48));
                 bg.setColor(selected ? Color.rgb(226, 240, 255) : Color.WHITE);
                 bg.setStroke(dp(selected ? 2 : 1), selected ? blue : line);
                 button.setBackground(bg);
@@ -416,7 +417,7 @@ public class PriceRankingActivity extends Activity {
         threshold.setPadding(dp(12), 0, dp(12), 0);
         GradientDrawable inputBg = new GradientDrawable();
         inputBg.setColor(Color.rgb(247, 248, 240));
-        inputBg.setCornerRadius(dp(14));
+        inputBg.setCornerRadius(dp(48));
         inputBg.setStroke(dp(1), Color.rgb(218, 224, 203));
         threshold.setBackground(inputBg);
         thresholdRow.addView(threshold, new LinearLayout.LayoutParams(0, dp(50), 1));
@@ -491,7 +492,7 @@ public class PriceRankingActivity extends Activity {
         bg.setColor(primary ? Color.rgb(40, 90, 45) : Color.rgb(238, 239, 218));
         if (!primary) bg.setStroke(dp(1), line);
         button.setBackground(bg);
-        button.setElevation(dp(1));
+        button.setElevation(dp(5));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(48));
         lp.topMargin = dp(10);
         parent.addView(button, lp);
@@ -717,11 +718,11 @@ public class PriceRankingActivity extends Activity {
                     rowSwipeDownX = event.getX();
                     rowSwipeDownY = event.getY();
                     rowSwipeTracking = false;
-                    return false;
+                    return true;
                 case MotionEvent.ACTION_MOVE:
                     float dx = event.getX() - rowSwipeDownX;
                     float dy = event.getY() - rowSwipeDownY;
-                    if (Math.abs(dx) > dp(12) && Math.abs(dx) > Math.abs(dy) * 1.3f) {
+                    if (Math.abs(dx) > dp(18) && Math.abs(dx) > Math.abs(dy) * 1.15f) {
                         rowSwipeTracking = true;
                         view.getParent().requestDisallowInterceptTouchEvent(true);
                         return true;
@@ -864,7 +865,7 @@ public class PriceRankingActivity extends Activity {
         floatingActiveIcon.setGravity(Gravity.CENTER);
         floatingActiveIcon.setTextSize(25);
         floatingActiveIcon.setTextColor(Color.rgb(18, 122, 92));
-        floatingActiveIcon.setElevation(dp(6));
+        floatingActiveIcon.setElevation(dp(10));
         GradientDrawable bubble = new GradientDrawable();
         bubble.setShape(GradientDrawable.OVAL);
         bubble.setColor(Color.rgb(255, 255, 249));
