@@ -85,7 +85,7 @@ public class MainActivity extends Activity {
         TextView title = new TextView(this); title.setText("价格哨兵"); title.setTextSize(26); title.setTextColor(0xFF172033); title.setTypeface(null, 1); root.addView(title);
         TextView intro = new TextView(this); intro.setText("监控 AppStorePrice.org 多地区订阅价格。首次成功检查只建立基线；之后仅在价格变化达到阈值时发送系统通知。建议允许本应用后台运行。"); intro.setTextSize(14); intro.setTextColor(0xFF5B6472); addSpace(root, 8); root.addView(intro);
         TextView urlLabel = new TextView(this); urlLabel.setText("监控页面（每行一个链接）"); urlLabel.setTextSize(15); urlLabel.setTextColor(0xFF172033); addSpace(root, 20); root.addView(urlLabel);
-        urlsInput = new EditText(this); urlsInput.setMinLines(4); urlsInput.setGravity(0x00800003 | 0x00000010); urlsInput.setText("https://appstoreprice.org/zh/apps/6448311069\nhttps://appstoreprice.org/zh/apps/6477489729"); urlsInput.setHint("https://appstoreprice.org/zh/apps/应用ID"); root.addView(urlsInput, new LinearLayout.LayoutParams(-1, dp(140)));
+
         TextView thresholdLabel = new TextView(this); thresholdLabel.setText("重大变动阈值（百分比）"); thresholdLabel.setTextSize(15); thresholdLabel.setTextColor(0xFF172033); addSpace(root, 16); root.addView(thresholdLabel);
         thresholdInput = new EditText(this); thresholdInput.setInputType(8194); thresholdInput.setText("5"); thresholdInput.setHint("例如 5 表示 5%"); root.addView(thresholdInput, new LinearLayout.LayoutParams(-1, dp(52)));
         TextView rankingLabel = new TextView(this); rankingLabel.setText("价格排行页面"); rankingLabel.setTextSize(15); rankingLabel.setTextColor(0xFF172033); addSpace(root, 16); root.addView(rankingLabel);
