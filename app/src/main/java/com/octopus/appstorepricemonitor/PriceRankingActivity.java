@@ -90,12 +90,12 @@ public class PriceRankingActivity extends Activity {
             @Override public void draw(Canvas canvas) {
                 android.graphics.Rect b = getBounds();
                 float w = b.width(), h = b.height();
-                float radius = dp(30), bulge = dp(38);
+                float radius = dp(30), bulge = dp(25);
                 int[] order = {1, 0, 2, 3, -1};
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
                 float cx = w * (slot + 0.5f) / 5f;
-                float half = dp(48);
+                float half = dp(42);
                 Path path = new Path();
                 path.moveTo(0, radius);
                 path.quadTo(0, 0, radius, 0);
@@ -105,8 +105,8 @@ public class PriceRankingActivity extends Activity {
                 path.lineTo(w, baseY - dp(30));
                 path.quadTo(w, baseY, w - dp(30), baseY);
                 path.lineTo(cx + half, baseY);
-                path.cubicTo(cx + dp(22), baseY, cx + dp(26), h, cx, h);
-                path.cubicTo(cx - dp(26), h, cx - dp(22), baseY, cx - half, baseY);
+                path.cubicTo(cx + dp(25), baseY, cx + dp(25), h, cx, h);
+                path.cubicTo(cx - dp(25), h, cx - dp(25), baseY, cx - half, baseY);
                 path.lineTo(dp(30), baseY);
                 path.quadTo(0, baseY, 0, baseY - dp(30));
                 path.close();
@@ -117,8 +117,8 @@ public class PriceRankingActivity extends Activity {
             @Override public void setColorFilter(android.graphics.ColorFilter colorFilter) { paint.setColorFilter(colorFilter); }
             @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
         });
-        FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(-1, -1);
-        cardLp.bottomMargin = dp(5);
+        FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(-1, -1, Gravity.TOP);
+        cardLp.bottomMargin = dp(84);
         contentFrame.addView(card, cardLp);
 
         currentHeading = new TextView(this);
@@ -387,13 +387,13 @@ public class PriceRankingActivity extends Activity {
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
                 float cx = w * (slot + 0.5f) / 5f;
-                float notch = dp(49), top = dp(13), r = dp(36);
+                float notch = dp(43), top = dp(9), r = dp(36);
                 Path path = new Path();
                 path.moveTo(0, top + r);
                 path.quadTo(0, top, r, top);
                 path.lineTo(Math.max(r, cx - notch), top);
-                path.cubicTo(cx - dp(25), top, cx - dp(27), h - dp(3), cx, h - dp(3));
-                path.cubicTo(cx + dp(27), h - dp(3), cx + dp(25), top, cx + notch, top);
+                path.cubicTo(cx - dp(22), top, cx - dp(22), top + dp(24), cx, top + dp(24));
+                path.cubicTo(cx + dp(22), top + dp(24), cx + dp(22), top, cx + notch, top);
                 path.lineTo(w - r, top);
                 path.quadTo(w, top, w, top + r);
                 path.lineTo(w, h - r);
