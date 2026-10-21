@@ -694,8 +694,10 @@ public class PriceRankingActivity extends Activity {
         final int targetSlot = selectedSlot;
         if (targetSlot < 2) {
             ((ChatGptNavIcon) floatingActiveIcon).setBadge(targetSlot == 0 ? "＋" : "G");
+            ((ChatGptNavIcon) floatingActiveIcon).setLogoVisible(true);
             floatingActiveIcon.setText("");
         } else {
+            ((ChatGptNavIcon) floatingActiveIcon).setLogoVisible(false);
             floatingActiveIcon.setText(glyph);
             floatingActiveIcon.setTextSize(25);
         }
@@ -758,6 +760,7 @@ public class PriceRankingActivity extends Activity {
     private final class ChatGptNavIcon extends TextView {
         private final Paint logoPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private String badge;
+        private boolean logoVisible = true;
         ChatGptNavIcon(String badge) {
             super(PriceRankingActivity.this);
             this.badge = badge;
@@ -765,8 +768,10 @@ public class PriceRankingActivity extends Activity {
             setText("");
         }
         void setBadge(String value) { badge = value; invalidate(); }
+        void setLogoVisible(boolean value) { logoVisible = value; invalidate(); }
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
+            if (!logoVisible) return;
             float cx = getWidth() / 2f, cy = getHeight() / 2f;
             float radius = dp(5), ring = dp(4);
             logoPaint.setStyle(Paint.Style.STROKE);
