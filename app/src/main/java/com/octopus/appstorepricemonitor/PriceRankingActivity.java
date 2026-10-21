@@ -806,7 +806,8 @@ public class PriceRankingActivity extends Activity {
                 int[] order = {0, 1, 2, 3, 4};
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
-                float cx = w / 2f - dp(160) + dp(64) * (slot + 0.5f);
+                float targetCx = w / 2f - dp(160) + dp(64) * (slot + 0.5f);
+                float cx = animatedNotchCenter >= 0 ? animatedNotchCenter : targetCx;
                 float notch = dp(43), top = dp(9), r = dp(36);
                 Path path = new Path();
                 path.moveTo(0, top + r);
