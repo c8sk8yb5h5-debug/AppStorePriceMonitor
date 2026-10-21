@@ -1,6 +1,20 @@
 package com.octopus.appstorepricemonitor;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.net.Uri;
+import android.os.Environment;
+import android.os.Build;
+import android.content.pm.PackageInfo;
+import android.widget.Toast;
+import androidx.core.content.FileProvider;
+import java.io.File;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import org.json.JSONObject;
+import org.json.JSONArray;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Canvas;
@@ -349,10 +363,7 @@ public class PriceRankingActivity extends Activity {
             android.content.pm.PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
             if (info.versionName != null) version = info.versionName;
         } catch (Exception ignored) {}
-        addSettingsButton(panel, "检查应用更新（v" + version + "）", false, () -> {
-            try { startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/c8sk8yb5h5-debug/AppStorePriceMonitor/releases/latest"))); }
-            catch (Exception e) { android.widget.Toast.makeText(this, "无法打开更新页面", android.widget.Toast.LENGTH_SHORT).show(); }
-        });
+        addSettingsButton(panel, "检查应用更新（v" + version + "）", false, () -> checkForUpdates(true));
         rowsContainer.addView(panel);
     }
 
@@ -372,6 +383,142 @@ public class PriceRankingActivity extends Activity {
         lp.topMargin = dp(10);
         parent.addView(button, lp);
         button.setOnClickListener(v -> action.run());
+    }
+
+
+    private void checkForUpdates(boolean showUpToDate) {
+        Toast.makeText(this, "正在检查更新…", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                URL url = new URL("https://api.github.com/repos/c8sk8yb5h5-debug/AppStorePriceMonitor/releases/latest");
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setConnectTimeout(12000);
+                connection.setReadTimeout(12000);
+                connection.setRequestProperty("Accept", "application/vnd.github+json");
+                connection.setRequestProperty("User-Agent", "PriceSentinel-Android");
+                if (connection.getResponseCode() != 200) throw new Exception("GitHub API HTTP " + connection.getResponseCode());
+                StringBuilder json = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                        connection.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) json.append(line);
+                }
+                JSONObject release = new JSONObject(json.toString());
+                String tag = release.optString("tag_name", "");
+                String latest = tag.startsWith("v") ? tag.substring(1) : tag;
+                String notes = release.optString("body", "此版本没有更新说明。");
+                String downloadUrl = "";
+                JSONArray assets = release.optJSONArray("assets");
+                if (assets != null) {
+                    for (int i = 0; i < assets.length(); i++) {
+                        JSONObject asset = assets.optJSONObject(i);
+                        if (asset != null && asset.optString("name", "").equals("app-release.apk")) {
+                            downloadUrl = asset.optString("browser_download_url", "");
+                            break;
+                        }
+                    }
+                }
+                PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+                String current = info.versionName == null ? "0.1.0" : info.versionName;
+                final String apkUrl = downloadUrl;
+                final String releaseTag = tag;
+                final String releaseNotes = notes;
+                final String latestVersion = latest;
+                final String currentVersion = current;
+                runOnUiThread(() -> {
+                    if (isFinishing()) return;
+                    if (compareVersions(latestVersion, currentVersion) > 0 && !apkUrl.isEmpty()) {
+                        new AlertDialog.Builder(this)
+                            .setTitle("发现新版本 " + latestVersion)
+                            .setMessage("当前版本：" + currentVersion + "\n\n更新说明：\n" + releaseNotes + "\n\n下载并安装更新？")
+                            .setNegativeButton("稍后", null)
+                            .setPositiveButton("下载更新", (d, w) -> downloadUpdate(apkUrl, releaseTag))
+                            .show();
+                    } else if (showUpToDate) {
+                        Toast.makeText(this, "当前已是最新版本（" + currentVersion + "）", Toast.LENGTH_LONG).show();
+                    }
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (showUpToDate && !isFinishing())
+                        Toast.makeText(this, "检查更新失败，请检查网络后重试", Toast.LENGTH_LONG).show();
+                });
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        }).start();
+    }
+
+    private int compareVersions(String a, String b) {
+        String[] x = a.split("\\.");
+        String[] y = b.split("\\.");
+        for (int i = 0; i < Math.max(x.length, y.length); i++) {
+            int xi = i < x.length ? parseVersionPart(x[i]) : 0;
+            int yi = i < y.length ? parseVersionPart(y[i]) : 0;
+            if (xi != yi) return Integer.compare(xi, yi);
+        }
+        return 0;
+    }
+
+    private int parseVersionPart(String value) {
+        String digits = value.replaceAll("[^0-9].*$", "");
+        try { return Integer.parseInt(digits); } catch (Exception e) { return 0; }
+    }
+
+    private void downloadUpdate(String url, String tag) {
+        if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+            new AlertDialog.Builder(this).setTitle("需要允许安装应用")
+                .setMessage("请允许“价格哨兵”安装应用，返回后重新点击“检查应用更新”。")
+                .setNegativeButton("取消", null)
+                .setPositiveButton("打开设置", (d, w) -> {
+                    Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + getPackageName()));
+                    startActivity(intent);
+                }).show();
+            return;
+        }
+        Toast.makeText(this, "正在下载更新包…", Toast.LENGTH_LONG).show();
+        new Thread(() -> {
+            File temp = null;
+            try {
+                temp = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "price-sentinel-update.apk");
+                if (temp.exists()) temp.delete();
+                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setConnectTimeout(20000);
+                conn.setReadTimeout(30000);
+                conn.setInstanceFollowRedirects(true);
+                conn.setRequestProperty("User-Agent", "PriceSentinel-Android");
+                int code = conn.getResponseCode();
+                if (code != 200) throw new Exception("HTTP " + code);
+                try (java.io.InputStream in = conn.getInputStream();
+                     java.io.FileOutputStream out = new java.io.FileOutputStream(temp)) {
+                    byte[] buffer = new byte[16384];
+                    int n;
+                    while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
+                    out.flush();
+                } finally {
+                    conn.disconnect();
+                }
+                if (!temp.exists() || temp.length() < 100000) throw new Exception("APK 文件不完整");
+                File apk = temp;
+                runOnUiThread(() -> {
+                    try {
+                        Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", apk);
+                        Intent install = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+                        install.setData(uri);
+                        install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        install.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+                        startActivity(install);
+                    } catch (Exception e) {
+                        Toast.makeText(this, "已下载更新包，但无法打开安装器，请允许本应用安装未知应用后重试", Toast.LENGTH_LONG).show();
+                    }
+                });
+            } catch (Exception e) {
+                if (temp != null && temp.exists()) temp.delete();
+                runOnUiThread(() -> Toast.makeText(this, "更新下载失败，请检查网络后重试", Toast.LENGTH_LONG).show());
+            }
+        }).start();
     }
 
     private void loadPrices() {
