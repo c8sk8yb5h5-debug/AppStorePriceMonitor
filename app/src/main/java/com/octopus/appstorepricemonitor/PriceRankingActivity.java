@@ -686,7 +686,6 @@ public class PriceRankingActivity extends Activity {
         if (favorite) capsule.setStroke(dp(1), Color.rgb(105, 124, 70));
         item.setBackground(capsule);
         item.setElevation(favorite ? dp(3) : 0);
-        item.setElevation(favorite ? dp(3) : 0);
 
         item.addView(cell(String.valueOf(row.rank), 0.55f, Gravity.CENTER, false, ink));
         TextView countryCell = cell((favorite ? "★ " : "☆ ") + row.country, 1.30f, Gravity.START, false, ink);
@@ -757,7 +756,7 @@ public class PriceRankingActivity extends Activity {
             countryCell.setText((favorite ? "★ " : "☆ ") + country.trim());
             countryCell.setTextColor(favorite ? Color.rgb(39, 74, 40) : ink);
             GradientDrawable capsule = new GradientDrawable();
-            capsule.setColor(favorite ? Color.rgb(255, 220, 122) : Color.TRANSPARENT);
+            capsule.setColor(favorite ? Color.argb(179, 255, 255, 255) : Color.TRANSPARENT);
             capsule.setCornerRadius(dp(48));
             if (favorite) capsule.setStroke(dp(1), Color.rgb(105, 124, 70));
             item.setBackground(capsule);
