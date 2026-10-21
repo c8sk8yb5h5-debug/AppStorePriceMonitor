@@ -36,6 +36,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import org.jsoup.Jsoup;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class PriceRankingActivity extends Activity {
     private static final String PREFS = "price_ranking";
@@ -62,6 +64,9 @@ public class PriceRankingActivity extends Activity {
     private View cardNotch;
     private View navShape;
     private float animatedNotchCenter = -1f;
+    private android.animation.ValueAnimator notchAnimator;
+    private View mainCard;
+    private final Map<String, List<PriceRow>> priceCache = new HashMap<>();
     private View tableHeader;
     private ScrollView priceScroll;
     private boolean changingProduct = false;
@@ -139,6 +144,7 @@ public class PriceRankingActivity extends Activity {
         FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(-1, -1, Gravity.TOP);
         cardLp.bottomMargin = dp(30);
         contentFrame.addView(card, cardLp);
+        mainCard = card;
 
         currentHeading = new TextView(this);
         currentHeading.setText(PRODUCT_NAMES[selectedProduct].toUpperCase());
@@ -163,7 +169,7 @@ public class PriceRankingActivity extends Activity {
         statusView.setPadding(dp(4), dp(5), dp(4), dp(5));
         card.addView(statusView, new LinearLayout.LayoutParams(-1, dp(25)));
         statusView.setContentDescription("点击刷新价格");
-        statusView.setOnClickListener(v -> loadPrices());
+        statusView.setOnClickListener(v -> loadPrices(true));
 
         HorizontalScrollView horizontal = new HorizontalScrollView(this);
         horizontal.setFillViewport(true);
@@ -193,7 +199,7 @@ public class PriceRankingActivity extends Activity {
         setContentView(root);
         root.requestApplyInsets();
         renderBottomNavigation();
-        loadPrices();
+        loadPrices(true);
     }
 
     private TextView circleAction(String symbol, String description) {
@@ -627,12 +633,21 @@ public class PriceRankingActivity extends Activity {
         }).start();
     }
 
-    private void loadPrices() {
+    private void loadPrices() { loadPrices(false); }
+
+    private void loadPrices(boolean forceRefresh) {
         if (selectedProduct == 4) return;
+        final String requestedUrl = currentUrl;
+        List<PriceRow> cached = priceCache.get(requestedUrl);
+        if (!forceRefresh && cached != null && !cached.isEmpty()) {
+            progress.setVisibility(View.GONE);
+            statusView.setText("已缓存 · " + cached.size() + " 个地区 · 点击此处刷新");
+            renderPriceRows(cached);
+            return;
+        }
         statusView.setText("正在更新 " + PRODUCT_NAMES[selectedProduct] + " 价格数据…");
         progress.setVisibility(View.VISIBLE);
         progress.setProgress(12);
-        final String requestedUrl = currentUrl;
         new Thread(() -> {
             try {
                 String html = Jsoup.connect(requestedUrl)
@@ -652,8 +667,9 @@ public class PriceRankingActivity extends Activity {
                         rowsContainer.addView(empty);
                         return;
                     }
+                    priceCache.put(requestedUrl, new java.util.ArrayList<>(prices));
                     statusView.setText("已更新 · " + prices.size() + " 个地区 · 按人民币价格排序");
-                    for (PriceRow price : prices) rowsContainer.addView(makeRow(price));
+                    renderPriceRows(prices);
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
@@ -669,6 +685,11 @@ public class PriceRankingActivity extends Activity {
                 });
             }
         }).start();
+    }
+
+    private void renderPriceRows(List<PriceRow> prices) {
+        rowsContainer.removeAllViews();
+        for (PriceRow price : prices) rowsContainer.addView(makeRow(price));
     }
 
     private View makeRow(PriceRow row) {
@@ -927,7 +948,7 @@ public class PriceRankingActivity extends Activity {
             statusView.setVisibility(View.VISIBLE);
             tableHeader.setVisibility(View.VISIBLE);
             priceScroll.setVisibility(View.VISIBLE);
-            loadPrices();
+            loadPrices(false);
         }
         changingProduct = false;
     }
