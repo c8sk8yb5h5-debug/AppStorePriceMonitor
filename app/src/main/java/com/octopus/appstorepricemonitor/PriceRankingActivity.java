@@ -319,42 +319,109 @@ public class PriceRankingActivity extends Activity {
         statusView.setVisibility(View.GONE);
         tableHeader.setVisibility(View.GONE);
         priceScroll.setVisibility(View.VISIBLE);
+        priceScroll.setFillViewport(true);
         rowsContainer.removeAllViews();
-        rowsContainer.setBackground(new Drawable() {
-            private final Paint watermarkPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        rowsContainer.setBackgroundColor(Color.TRANSPARENT);
+
+        // Keep the rooster in the unused area of the settings viewport, rather than behind controls.
+        priceScroll.setBackground(new Drawable() {
             private final Drawable watermark = getDrawable(R.drawable.ic_launcher_foreground);
             @Override public void draw(Canvas canvas) {
                 if (watermark == null) return;
                 android.graphics.Rect b = getBounds();
-                int size = Math.min(dp(220), (int) (Math.min(b.width(), b.height()) * 0.72f));
+                int size = Math.min(dp(164), (int) (Math.min(b.width(), b.height()) * 0.42f));
                 if (size <= 0) return;
-                int left = b.left + (b.width() - size) / 2;
-                int top = b.top + (b.height() - size) / 2;
+                int left = b.right - size - dp(18);
+                int top = b.bottom - size - dp(18);
                 watermark.setBounds(left, top, left + size, top + size);
-                watermark.setAlpha(22);
+                watermark.setAlpha(13);
                 watermark.draw(canvas);
                 watermark.setAlpha(255);
             }
-            @Override public void setAlpha(int alpha) { watermarkPaint.setAlpha(alpha); }
-            @Override public void setColorFilter(android.graphics.ColorFilter filter) { watermarkPaint.setColorFilter(filter); }
+            @Override public void setAlpha(int alpha) { watermark.setAlpha(alpha); }
+            @Override public void setColorFilter(android.graphics.ColorFilter filter) { watermark.setColorFilter(filter); }
             @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
         });
-        LinearLayout panel = new LinearLayout(this);
-        panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(dp(8), dp(8), dp(8), dp(20));
-        TextView label = new TextView(this);
-        label.setText("重大变动阈值（百分比）");
-        label.setTextSize(15);
-        label.setTextColor(ink);
-        panel.addView(label);
+
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setPadding(dp(6), dp(12), dp(6), dp(24));
+
+        TextView title = new TextView(this);
+        title.setText("偏好设置");
+        title.setTextSize(24);
+        title.setTextColor(ink);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(dp(6), 0, dp(6), dp(3));
+        page.addView(title);
+
+        TextView subtitle = new TextView(this);
+        subtitle.setText("管理价格提醒与应用更新");
+        subtitle.setTextSize(12);
+        subtitle.setTextColor(muted);
+        subtitle.setPadding(dp(6), 0, dp(6), dp(16));
+        page.addView(subtitle);
+
+        LinearLayout monitorCard = new LinearLayout(this);
+        monitorCard.setOrientation(LinearLayout.VERTICAL);
+        monitorCard.setPadding(dp(14), dp(13), dp(14), dp(14));
+        GradientDrawable monitorBg = new GradientDrawable();
+        monitorBg.setColor(Color.rgb(248, 249, 237));
+        monitorBg.setCornerRadius(dp(18));
+        monitorBg.setStroke(dp(1), Color.rgb(215, 222, 192));
+        monitorCard.setBackground(monitorBg);
+        monitorCard.setElevation(dp(1));
+
+        TextView monitorTitle = new TextView(this);
+        monitorTitle.setText("价格变动提醒");
+        monitorTitle.setTextSize(16);
+        monitorTitle.setTextColor(ink);
+        monitorTitle.setTypeface(null, Typeface.BOLD);
+        monitorCard.addView(monitorTitle);
+
+        TextView monitorDescription = new TextView(this);
+        monitorDescription.setText("当订阅价格变动达到设定比例时，进行提醒。");
+        monitorDescription.setTextSize(12);
+        monitorDescription.setTextColor(muted);
+        monitorDescription.setPadding(0, dp(4), 0, dp(12));
+        monitorCard.addView(monitorDescription);
+
+        TextView thresholdLabel = new TextView(this);
+        thresholdLabel.setText("重大变动阈值");
+        thresholdLabel.setTextSize(13);
+        thresholdLabel.setTextColor(ink);
+        monitorCard.addView(thresholdLabel);
+
+        LinearLayout thresholdRow = new LinearLayout(this);
+        thresholdRow.setOrientation(LinearLayout.HORIZONTAL);
+        thresholdRow.setGravity(Gravity.CENTER_VERTICAL);
         android.widget.EditText threshold = new android.widget.EditText(this);
         threshold.setSingleLine(true);
         threshold.setInputType(8194);
-        float saved = getSharedPreferences(PriceMonitorWorker.PREFS, MODE_PRIVATE).getFloat(PriceMonitorWorker.THRESHOLD_KEY, 5f);
-        threshold.setText(String.valueOf((int) saved));
+        threshold.setTextSize(17);
         threshold.setTextColor(ink);
-        panel.addView(threshold, new LinearLayout.LayoutParams(-1, dp(48)));
-        addSettingsButton(panel, "保存设置并启用每日监控", true, () -> {
+        threshold.setSelectAllOnFocus(true);
+        float saved = getSharedPreferences(PriceMonitorWorker.PREFS, MODE_PRIVATE)
+                .getFloat(PriceMonitorWorker.THRESHOLD_KEY, 5f);
+        threshold.setText(saved == (int) saved ? String.valueOf((int) saved) : String.valueOf(saved));
+        threshold.setPadding(dp(10), 0, dp(10), 0);
+        GradientDrawable inputBg = new GradientDrawable();
+        inputBg.setColor(Color.WHITE);
+        inputBg.setCornerRadius(dp(12));
+        inputBg.setStroke(dp(1), line);
+        threshold.setBackground(inputBg);
+        thresholdRow.addView(threshold, new LinearLayout.LayoutParams(0, dp(48), 1));
+
+        TextView percent = new TextView(this);
+        percent.setText("%");
+        percent.setTextSize(16);
+        percent.setTextColor(ink);
+        percent.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams percentLp = new LinearLayout.LayoutParams(dp(38), dp(48));
+        thresholdRow.addView(percent, percentLp);
+        monitorCard.addView(thresholdRow);
+
+        addSettingsButton(monitorCard, "保存并启用每日监控", true, () -> {
             float value;
             try { value = Float.parseFloat(threshold.getText().toString().trim()); } catch (Exception e) { value = 0; }
             if (value < 1 || value > 100) {
@@ -369,17 +436,38 @@ public class PriceRankingActivity extends Activity {
                     .putFloat(PriceMonitorWorker.THRESHOLD_KEY, value).apply();
             android.widget.Toast.makeText(this, "设置已保存，每日监控已启用", android.widget.Toast.LENGTH_SHORT).show();
         });
-        addSettingsButton(panel, "立即检查一次", false, () -> {
-            androidx.work.WorkManager.getInstance(this).enqueue(androidx.work.OneTimeWorkRequest.from(PriceMonitorWorker.class));
+        page.addView(monitorCard);
+
+        TextView toolsTitle = new TextView(this);
+        toolsTitle.setText("维护");
+        toolsTitle.setTextSize(15);
+        toolsTitle.setTextColor(ink);
+        toolsTitle.setTypeface(null, Typeface.BOLD);
+        toolsTitle.setPadding(dp(6), dp(20), dp(6), dp(2));
+        page.addView(toolsTitle);
+
+        TextView toolsDescription = new TextView(this);
+        toolsDescription.setText("手动检查价格或获取最新版本");
+        toolsDescription.setTextSize(12);
+        toolsDescription.setTextColor(muted);
+        toolsDescription.setPadding(dp(6), 0, dp(6), dp(4));
+        page.addView(toolsDescription);
+
+        addSettingsButton(page, "立即检查一次", false, () -> {
+            androidx.work.WorkManager.getInstance(this).enqueue(
+                    androidx.work.OneTimeWorkRequest.from(PriceMonitorWorker.class));
             android.widget.Toast.makeText(this, "已提交价格检查任务", android.widget.Toast.LENGTH_SHORT).show();
         });
+
         String version = "未知";
         try {
             android.content.pm.PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
             if (info.versionName != null) version = info.versionName;
         } catch (Exception ignored) {}
-        addSettingsButton(panel, "检查应用更新（v" + version + "）", false, () -> checkForUpdates(true));
-        rowsContainer.addView(panel);
+        addSettingsButton(page, "检查应用更新  ·  v" + version, false, () -> checkForUpdates(true));
+
+        LinearLayout.LayoutParams pageLp = new LinearLayout.LayoutParams(-1, -2);
+        rowsContainer.addView(page, pageLp);
     }
 
     private void addSettingsButton(LinearLayout parent, String text, boolean primary, Runnable action) {
