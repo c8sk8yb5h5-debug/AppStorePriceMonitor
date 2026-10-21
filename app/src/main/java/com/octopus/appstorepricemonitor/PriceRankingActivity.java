@@ -34,7 +34,10 @@ public class PriceRankingActivity extends Activity {
 
     private LinearLayout rowsContainer;
     private LinearLayout productTabs;
-    private LinearLayout bottomNav;
+    private FrameLayout bottomNav;
+    private LinearLayout navItems;
+    private TextView floatingActiveIcon;
+    private TextView currentHeading;
     private ScrollView priceScroll;
     private GestureDetector swipeDetector;
     private boolean changingProduct = false;
@@ -84,15 +87,15 @@ public class PriceRankingActivity extends Activity {
         cardLp.bottomMargin = dp(52);
         contentFrame.addView(card, cardLp);
 
-        TextView heading = new TextView(this);
-        heading.setText(PRODUCT_NAMES[selectedProduct].toUpperCase());
-        heading.setTextSize(26);
-        heading.setTextColor(Color.WHITE);
-        heading.setTypeface(Typeface.create("cursive", Typeface.NORMAL));
-        heading.setGravity(Gravity.CENTER_VERTICAL);
-        heading.setSingleLine(true);
-        heading.setPadding(dp(10), 0, 0, 0);
-        card.addView(heading, new LinearLayout.LayoutParams(-1, dp(54)));
+        currentHeading = new TextView(this);
+        currentHeading.setText(PRODUCT_NAMES[selectedProduct].toUpperCase());
+        currentHeading.setTextSize(26);
+        currentHeading.setTextColor(Color.WHITE);
+        currentHeading.setTypeface(Typeface.create("cursive", Typeface.NORMAL));
+        currentHeading.setGravity(Gravity.CENTER_VERTICAL);
+        currentHeading.setSingleLine(true);
+        currentHeading.setPadding(dp(10), 0, 0, 0);
+        card.addView(currentHeading, new LinearLayout.LayoutParams(-1, dp(54)));
         View titleDivider = new View(this);
         titleDivider.setBackgroundColor(Color.rgb(177, 191, 137));
         card.addView(titleDivider, new LinearLayout.LayoutParams(-1, dp(1)));
@@ -340,14 +343,19 @@ public class PriceRankingActivity extends Activity {
         return super.dispatchTouchEvent(event);
     }
 
-    private LinearLayout makeBottomNavigation() {
-        LinearLayout shell = new LinearLayout(this);
-        shell.setGravity(Gravity.CENTER);
-        shell.setPadding(dp(2), dp(8), dp(2), dp(4));
+    private FrameLayout makeBottomNavigation() {
+        FrameLayout shell = new FrameLayout(this);
+        navItems = new LinearLayout(this);
+        navItems.setGravity(Gravity.CENTER);
+        navItems.setOrientation(LinearLayout.HORIZONTAL);
+        navItems.setPadding(dp(2), dp(4), dp(2), dp(2));
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.BLACK);
-        bg.setCornerRadius(dp(40));
-        shell.setBackground(bg);
+        bg.setCornerRadius(dp(42));
+        navItems.setBackground(bg);
+        FrameLayout.LayoutParams barLp = new FrameLayout.LayoutParams(-1, dp(70), Gravity.BOTTOM);
+        shell.addView(navItems, barLp);
+
         String[] symbols = {"✳", "G", "✦", "✧", "⚙"};
         String[] descriptions = {"ChatGPT Plus", "ChatGPT Go", "Gemini Pro", "Gemini Plus", "设置"};
         int[] productIndex = {1, 0, 2, 3, -1};
@@ -358,9 +366,10 @@ public class PriceRankingActivity extends Activity {
             item.setOrientation(LinearLayout.VERTICAL);
             TextView icon = new TextView(this);
             icon.setText(symbols[i]);
-            icon.setTextSize(i == 1 ? 18 : 22);
+            icon.setTextSize(i == 1 ? 19 : 22);
             icon.setGravity(Gravity.CENTER);
             icon.setContentDescription(descriptions[i]);
+            icon.setTextColor(Color.rgb(225, 227, 218));
             item.addView(icon, new LinearLayout.LayoutParams(-1, dp(42)));
             View dot = new View(this);
             item.addView(dot, new LinearLayout.LayoutParams(dp(4), dp(4)));
@@ -372,24 +381,48 @@ public class PriceRankingActivity extends Activity {
                     selectProduct(index, index >= selectedProduct ? 1 : -1);
                 }
             });
-            shell.addView(item, new LinearLayout.LayoutParams(0, -1, 1));
+            navItems.addView(item, new LinearLayout.LayoutParams(0, -1, 1));
         }
+
+        floatingActiveIcon = new TextView(this);
+        floatingActiveIcon.setGravity(Gravity.CENTER);
+        floatingActiveIcon.setTextSize(25);
+        floatingActiveIcon.setTextColor(Color.rgb(18, 122, 92));
+        floatingActiveIcon.setElevation(dp(6));
+        GradientDrawable bubble = new GradientDrawable();
+        bubble.setShape(GradientDrawable.OVAL);
+        bubble.setColor(Color.rgb(255, 255, 249));
+        floatingActiveIcon.setBackground(bubble);
+        floatingActiveIcon.setContentDescription("当前订阅方案");
+        FrameLayout.LayoutParams bubbleLp = new FrameLayout.LayoutParams(dp(62), dp(62), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        shell.addView(floatingActiveIcon, bubbleLp);
         return shell;
     }
 
     private void renderBottomNavigation() {
-        if (bottomNav == null) return;
+        if (bottomNav == null || navItems == null || floatingActiveIcon == null) return;
+        String[] symbols = {"✳", "G", "✦", "✧", "⚙"};
         int[] productIndex = {1, 0, 2, 3, -1};
-        for (int i = 0; i < bottomNav.getChildCount(); i++) {
-            LinearLayout item = (LinearLayout) bottomNav.getChildAt(i);
+        int selectedSlot = 0;
+        for (int i = 0; i < navItems.getChildCount(); i++) {
+            LinearLayout item = (LinearLayout) navItems.getChildAt(i);
             TextView icon = (TextView) item.getChildAt(0);
             boolean selected = productIndex[i] == selectedProduct;
-            icon.setTextColor(selected ? Color.rgb(255, 220, 120) : Color.rgb(205, 208, 200));
-            item.animate().scaleX(selected ? 1.16f : 1f).scaleY(selected ? 1.16f : 1f)
-                    .translationY(selected ? -dp(3) : 0).setDuration(220).start();
+            if (selected) selectedSlot = i;
+            icon.setVisibility(selected ? View.INVISIBLE : View.VISIBLE);
+            icon.setTextColor(Color.rgb(205, 208, 200));
+            item.animate().scaleX(1f).scaleY(1f).translationY(0).setDuration(180).start();
             View dot = item.getChildAt(1);
-            dot.setBackgroundColor(selected ? Color.rgb(255, 220, 120) : Color.TRANSPARENT);
+            dot.setBackgroundColor(Color.TRANSPARENT);
         }
+        String glyph = symbols[selectedSlot];
+        floatingActiveIcon.setText(glyph);
+        floatingActiveIcon.setTranslationX(0);
+        floatingActiveIcon.setTranslationY(dp(40));
+        floatingActiveIcon.setScaleX(0.58f);
+        floatingActiveIcon.setScaleY(0.58f);
+        floatingActiveIcon.animate().translationY(0).scaleX(1f).scaleY(1f)
+                .setDuration(520).setInterpolator(new android.view.animation.OvershootInterpolator(1.35f)).start();
     }
 
     private void selectProduct(int index, int direction) {
@@ -400,6 +433,7 @@ public class PriceRankingActivity extends Activity {
                 .setDuration(150).withEndAction(() -> {
                     selectedProduct = index;
                     currentUrl = PRODUCT_URLS[index];
+                    currentHeading.setText(PRODUCT_NAMES[selectedProduct].toUpperCase());
                     getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString("url", currentUrl).apply();
                     renderProductTabs();
                     renderBottomNavigation();
