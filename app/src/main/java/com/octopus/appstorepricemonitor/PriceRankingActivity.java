@@ -3,135 +3,201 @@ package com.octopus.appstorepricemonitor;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
-import android.webkit.WebChromeClient;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.Button;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import org.jsoup.Jsoup;
+import java.util.List;
 
 public class PriceRankingActivity extends Activity {
-    private WebView webView;
-    private ProgressBar progress;
     private static final String DEFAULT_URL = "https://appstoreprice.org/zh/apps/6448311069?plan=1";
+    private LinearLayout rowsContainer;
+    private TextView statusView;
+    private ProgressBar progress;
+    private String currentUrl;
+
+    private final int ink = Color.rgb(27, 37, 56);
+    private final int muted = Color.rgb(104, 117, 139);
+    private final int line = Color.rgb(222, 229, 238);
+    private final int page = Color.rgb(248, 250, 253);
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // Keep the system notification/status bar visible and reserve its space explicitly.
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN
                 | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-        getWindow().setStatusBarColor(Color.rgb(248, 250, 253));
-        getWindow().setNavigationBarColor(Color.rgb(248, 250, 253));
+        getWindow().setStatusBarColor(page);
+        getWindow().setNavigationBarColor(page);
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
                 | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
 
-        String url = getIntent().getStringExtra("url");
-        if (url == null || !url.startsWith("https://appstoreprice.org/zh/apps/")) {
-            url = getSharedPreferences("price_ranking", MODE_PRIVATE)
-                    .getString("url", DEFAULT_URL);
+        currentUrl = getIntent().getStringExtra("url");
+        if (currentUrl == null || !currentUrl.startsWith("https://appstoreprice.org/zh/apps/")) {
+            currentUrl = getSharedPreferences("price_ranking", MODE_PRIVATE).getString("url", DEFAULT_URL);
         }
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.rgb(248, 250, 253));
-        root.setFitsSystemWindows(true);
-        int statusBarHeight = getSystemBarHeight("status_bar_height");
-        int navigationBarHeight = getSystemBarHeight("navigation_bar_height");
-        root.setPadding(0, statusBarHeight, 0, 0);
+        root.setBackgroundColor(page);
 
-        // Small, reachable controls below the system status bar; no page title or extra content.
         LinearLayout toolbar = new LinearLayout(this);
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setPadding(dp(8), 0, dp(8), 0);
-        toolbar.setBackgroundColor(Color.rgb(248, 250, 253));
-
+        toolbar.setPadding(dp(10), dp(2), dp(10), dp(2));
         Button settings = new Button(this);
         settings.setText("监控设置");
         settings.setTextSize(13);
-        toolbar.addView(settings, new LinearLayout.LayoutParams(0, dp(42), 1));
-
+        toolbar.addView(settings, new LinearLayout.LayoutParams(0, dp(44), 1));
         Button refresh = new Button(this);
         refresh.setText("刷新");
         refresh.setTextSize(13);
-        toolbar.addView(refresh, new LinearLayout.LayoutParams(dp(76), dp(42)));
-        root.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(44)));
+        toolbar.addView(refresh, new LinearLayout.LayoutParams(dp(76), dp(44)));
+        root.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(48)));
 
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
         root.addView(progress, new LinearLayout.LayoutParams(-1, dp(2)));
 
-        webView = new WebView(this);
-        webView.setBackgroundColor(Color.rgb(248, 250, 253));
-        WebSettings settingsWeb = webView.getSettings();
-        settingsWeb.setJavaScriptEnabled(true);
-        settingsWeb.setDomStorageEnabled(true);
-        settingsWeb.setLoadsImagesAutomatically(true);
-        settingsWeb.setSupportZoom(true);
-        settingsWeb.setBuiltInZoomControls(true);
-        settingsWeb.setDisplayZoomControls(false);
-        settingsWeb.setUseWideViewPort(true);
-        settingsWeb.setLoadWithOverviewMode(false);
-        String ua = settingsWeb.getUserAgentString();
-        settingsWeb.setUserAgentString(ua.replace("; wv", "").replace(" Mobile", ""));
+        statusView = new TextView(this);
+        statusView.setText("正在读取全球价格…");
+        statusView.setTextSize(12);
+        statusView.setTextColor(muted);
+        statusView.setPadding(dp(14), dp(7), dp(14), dp(7));
+        root.addView(statusView);
 
-        webView.setWebViewClient(new WebViewClient() {
-            @Override public void onPageFinished(WebView view, String pageUrl) {
-                super.onPageFinished(view, pageUrl);
-                view.evaluateJavascript("setTimeout(function(){(" + rankingOnlyScript() + ")();},500);", null);
-                view.postDelayed(() -> view.evaluateJavascript("(" + rankingOnlyScript() + ")();", null), 1600);
-                view.postDelayed(() -> view.evaluateJavascript("(" + rankingOnlyScript() + ")();", null), 3000);
-            }
-        });
-        webView.setWebChromeClient(new WebChromeClient() {
-            @Override public void onProgressChanged(WebView view, int newProgress) {
-                progress.setProgress(newProgress);
-                progress.setVisibility(newProgress >= 100 ? View.GONE : View.VISIBLE);
-            }
-        });
-        root.addView(webView, new LinearLayout.LayoutParams(-1, 0, 1));
+        HorizontalScrollView horizontal = new HorizontalScrollView(this);
+        horizontal.setFillViewport(true);
+        horizontal.setHorizontalScrollBarEnabled(false);
+        LinearLayout table = new LinearLayout(this);
+        table.setOrientation(LinearLayout.VERTICAL);
+        table.setBackgroundColor(Color.WHITE);
+        table.setMinimumWidth(getResources().getDisplayMetrics().widthPixels);
+        table.addView(makeHeader());
+        rowsContainer = new LinearLayout(this);
+        rowsContainer.setOrientation(LinearLayout.VERTICAL);
+        table.addView(rowsContainer, new LinearLayout.LayoutParams(-1, -2));
+        horizontal.addView(table);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(false);
+        scroll.addView(horizontal);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
 
         settings.setOnClickListener(v -> startActivity(new Intent(this, MainActivity.class)));
-        refresh.setOnClickListener(v -> webView.reload());
-        webView.loadUrl(url);
+        refresh.setOnClickListener(v -> loadPrices());
+        loadPrices();
     }
 
-    private String rankingOnlyScript() {
-        return "function(){try{"
-            + "var norm=function(e){return ((e.innerText||e.textContent||'').replace(/\\s+/g,' ').trim());};"
-            + "var nodes=Array.from(document.querySelectorAll('body *'));var target=null;"
-            + "var heads=nodes.filter(function(e){return e.children.length===0&&norm(e)==='排名';});"
-            + "for(var h of heads){var p=h;for(var i=0;i<10&&p&&p!==document.body;i++,p=p.parentElement){"
-            + "var t=norm(p);if(t.includes('地区')&&t.includes('原价')&&t.includes('CNY')&&t.includes('状态')){target=p;break;}}if(target)break;}"
-            + "if(!target){var c=nodes.filter(function(e){var t=norm(e);return t.includes('排名')&&t.includes('地区')&&t.includes('原价')&&t.includes('CNY')&&t.includes('状态')&&t.length<60000;});"
-            + "c.sort(function(a,b){return norm(a).length-norm(b).length;});target=c[0]||null;}"
-            + "if(!target)return;"
-            + "var style=document.getElementById('ranking-only-style');if(!style){style=document.createElement('style');style.id='ranking-only-style';document.head.appendChild(style);}"
-            + "style.textContent='html,body{margin:0!important;padding:0!important;width:100%!important;max-width:100%!important;overflow-x:hidden!important;background:#f8fafd!important;}body *{box-sizing:border-box;}';"
-            + "var chain=[],p=target;while(p&&p!==document.body){chain.push(p);p=p.parentElement;}if(!chain.length)return;"
-            + "var top=chain[chain.length-1];Array.from(document.body.children).forEach(function(e){if(e!==top)e.style.setProperty('display','none','important');});"
-            + "for(var k=chain.length-1;k>=0;k--){var parent=chain[k].parentElement;if(!parent)continue;Array.from(parent.children).forEach(function(e){if(e!==chain[k])e.style.setProperty('display','none','important');});}"
-            + "target.style.setProperty('display','block','important');target.style.setProperty('visibility','visible','important');"
-            + "target.style.setProperty('width','100%','important');target.style.setProperty('max-width','none','important');target.style.setProperty('margin','0','important');target.style.setProperty('padding','0','important');target.style.setProperty('overflow-x','auto','important');"
-            + "}catch(e){}}";
+    private View makeHeader() {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(6), 0, dp(6), 0);
+        header.setBackgroundColor(Color.rgb(242, 246, 251));
+        header.addView(cell("排名", 0.55f, Gravity.CENTER, true, muted));
+        header.addView(cell("地区", 1.35f, Gravity.START, true, muted));
+        header.addView(cell("原价", 1.65f, Gravity.CENTER, true, muted));
+        header.addView(cell("CNY", 1.0f, Gravity.CENTER, true, muted));
+        header.addView(cell("状态", 0.75f, Gravity.CENTER, true, muted));
+        return header;
     }
 
-    private int getSystemBarHeight(String name) {
-        int id = getResources().getIdentifier(name, "dimen", "android");
-        return id > 0 ? getResources().getDimensionPixelSize(id) : 0;
+    private TextView cell(String text, float weight, int gravity, boolean bold, int color) {
+        TextView v = new TextView(this);
+        v.setText(text);
+        v.setTextSize(12);
+        v.setTextColor(color);
+        v.setGravity(gravity | Gravity.CENTER_VERTICAL);
+        v.setPadding(dp(4), dp(12), dp(4), dp(12));
+        if (bold) v.setTypeface(null, Typeface.BOLD);
+        v.setMaxLines(1);
+        v.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        v.setLayoutParams(new LinearLayout.LayoutParams(0, -2, weight));
+        return v;
+    }
+
+    private void loadPrices() {
+        statusView.setText("正在更新价格数据…");
+        progress.setVisibility(View.VISIBLE);
+        progress.setProgress(12);
+        rowsContainer.removeAllViews();
+        new Thread(() -> {
+            try {
+                String html = Jsoup.connect(currentUrl)
+                        .userAgent("Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124.0.0.0 Mobile Safari/537.36")
+                        .timeout(20000).get().html();
+                List<PriceRow> prices = PricePageParser.parse(html);
+                runOnUiThread(() -> {
+                    progress.setVisibility(View.GONE);
+                    rowsContainer.removeAllViews();
+                    if (prices.isEmpty()) {
+                        statusView.setText("暂时无法解析价格表，请点击刷新重试。");
+                        TextView empty = new TextView(this);
+                        empty.setText("没有读取到地区价格。网站页面结构可能已变化，请稍后重试。");
+                        empty.setTextColor(muted);
+                        empty.setPadding(dp(18), dp(24), dp(18), dp(24));
+                        rowsContainer.addView(empty);
+                        return;
+                    }
+                    statusView.setText("已更新 · " + prices.size() + " 个地区 · 按人民币价格排序");
+                    for (PriceRow price : prices) rowsContainer.addView(makeRow(price));
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    progress.setVisibility(View.GONE);
+                    statusView.setText("加载失败，请检查网络后点击刷新。");
+                    TextView error = new TextView(this);
+                    error.setText("无法连接价格数据源。请确认网络可访问 appstoreprice.org。");
+                    error.setTextColor(muted);
+                    error.setPadding(dp(18), dp(24), dp(18), dp(24));
+                    rowsContainer.removeAllViews();
+                    rowsContainer.addView(error);
+                });
+            }
+        }).start();
+    }
+
+    private View makeRow(PriceRow row) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.HORIZONTAL);
+        item.setGravity(Gravity.CENTER_VERTICAL);
+        item.setPadding(dp(6), 0, dp(6), 0);
+        boolean lowest = row.status.contains("最低") || row.status.equalsIgnoreCase("Lowest");
+        item.setBackgroundColor(lowest ? Color.rgb(241, 251, 246) : Color.WHITE);
+        item.addView(cell(String.valueOf(row.rank), 0.55f, Gravity.CENTER, false, muted));
+        item.addView(cell(row.country, 1.35f, Gravity.START, false, ink));
+        item.addView(cell(row.originalPrice, 1.65f, Gravity.CENTER, false, muted));
+        item.addView(cell(row.cnyPrice, 1.0f, Gravity.CENTER, true, lowest ? Color.rgb(0, 158, 83) : ink));
+        TextView badge = cell(lowest ? "最低" : (row.status.contains("最高") || row.status.equalsIgnoreCase("Highest") ? "最高" : ""), 0.75f, Gravity.CENTER, true,
+                lowest ? Color.rgb(0, 145, 75) : muted);
+        if (lowest) {
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(Color.rgb(215, 249, 229));
+            bg.setCornerRadius(dp(20));
+            badge.setBackground(bg);
+            badge.setPadding(dp(4), dp(4), dp(4), dp(4));
+        }
+        item.addView(badge);
+        View divider = new View(this);
+        divider.setBackgroundColor(line);
+        LinearLayout wrapper = new LinearLayout(this);
+        wrapper.setOrientation(LinearLayout.VERTICAL);
+        wrapper.addView(item, new LinearLayout.LayoutParams(-1, -2));
+        wrapper.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
+        return wrapper;
     }
 
     @Override public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) webView.goBack();
-        else super.onBackPressed();
+        super.onBackPressed();
     }
 
     private int dp(int value) {
