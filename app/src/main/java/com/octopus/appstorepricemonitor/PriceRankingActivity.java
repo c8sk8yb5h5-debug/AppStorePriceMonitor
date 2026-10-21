@@ -466,7 +466,7 @@ public class PriceRankingActivity extends Activity {
         floatingActiveIcon.post(() -> {
             float centerX = bottomNav.getWidth() * (targetSlot + 0.5f) / 5f;
             float offsetX = centerX - bottomNav.getWidth() / 2f;
-            floatingActiveIcon.setTranslationX(offsetX);
+            floatingActiveIcon.animate().cancel();
             floatingActiveIcon.setTranslationY(dp(40));
             floatingActiveIcon.setScaleX(0.58f);
             floatingActiveIcon.setScaleY(0.58f);
