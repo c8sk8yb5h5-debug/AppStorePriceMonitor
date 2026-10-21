@@ -72,7 +72,7 @@ public class PriceRankingActivity extends Activity {
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
         toolbar.setPadding(dp(4), dp(4), dp(4), dp(6));
         TextView spacer = new TextView(this);
-        spacer.setText("价格哨兵");
+        spacer.setText("");
         spacer.setTextColor(ink);
         spacer.setTextSize(18);
         spacer.setTypeface(null, Typeface.BOLD);
