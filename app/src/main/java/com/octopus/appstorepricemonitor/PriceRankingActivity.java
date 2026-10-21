@@ -613,8 +613,8 @@ public class PriceRankingActivity extends Activity {
                 path.moveTo(0, top + r);
                 path.quadTo(0, top, r, top);
                 path.lineTo(Math.max(r, cx - notch), top);
-                path.cubicTo(cx - dp(20), top, cx - dp(20), top + dp(22), cx, top + dp(22));
-                path.cubicTo(cx + dp(20), top + dp(22), cx + dp(20), top, cx + notch, top);
+                path.cubicTo(cx - dp(29), top, cx - dp(26), top + dp(24), cx, top + dp(24));
+                path.cubicTo(cx + dp(26), top + dp(24), cx + dp(29), top, cx + notch, top);
                 path.lineTo(w - r, top);
                 path.quadTo(w, top, w, top + r);
                 path.lineTo(w, h - r);
@@ -691,14 +691,14 @@ public class PriceRankingActivity extends Activity {
             dot.setBackgroundColor(Color.TRANSPARENT);
         }
         String glyph = symbols[selectedSlot];
-        floatingActiveIcon.setText(glyph);
+        final int targetSlot = selectedSlot;
         if (targetSlot < 2) {
-            floatingActiveIcon.setTextSize(13);
-            floatingActiveIcon.setTextColor(Color.rgb(16, 163, 127));
+            ((ChatGptNavIcon) floatingActiveIcon).setBadge(targetSlot == 0 ? "＋" : "G");
+            floatingActiveIcon.setText("");
         } else {
+            floatingActiveIcon.setText(glyph);
             floatingActiveIcon.setTextSize(25);
         }
-        final int targetSlot = selectedSlot;
         if (navShape != null) navShape.invalidate();
         floatingActiveIcon.post(() -> {
             float centerX = bottomNav.getWidth() / 2f - dp(160) + dp(64) * (targetSlot + 0.5f);
