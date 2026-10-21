@@ -89,7 +89,9 @@ public class PriceMonitorWorker extends Worker {
                 String url = urls.optString(i, "").trim();
                 JSONObject app = current.optJSONObject(url);
                 if (app == null) continue;
-                for (String key : app.keySet()) {
+                java.util.Iterator<String> keys = app.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
                     JSONObject v = app.optJSONObject(key);
                     if (v != null) v.put("currency", key.substring(key.lastIndexOf('|') + 1));
                 }
