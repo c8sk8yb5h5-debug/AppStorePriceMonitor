@@ -110,7 +110,7 @@ public class PriceRankingActivity extends Activity {
                 int[] order = {0, 1, 2, 3, 4};
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
-                float cx = dp(8) + (w - dp(16)) * (slot + 0.5f) / 5f;
+                float cx = w / 2f - dp(160) + dp(64) * (slot + 0.5f);
                 float half = dp(52);
                 Path path = new Path();
                 path.moveTo(0, radius);
@@ -596,7 +596,7 @@ public class PriceRankingActivity extends Activity {
         navItems = new LinearLayout(this);
         navItems.setGravity(Gravity.CENTER);
         navItems.setOrientation(LinearLayout.HORIZONTAL);
-        navItems.setPadding(dp(18), dp(4), dp(18), dp(2));
+        navItems.setPadding(0, dp(4), 0, dp(2));
         navItems.setBackgroundColor(Color.TRANSPARENT);
         navShape = new View(this) {
             private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -607,8 +607,8 @@ public class PriceRankingActivity extends Activity {
                 int[] order = {0, 1, 2, 3, 4};
                 int slot = 0;
                 for (int i = 0; i < order.length; i++) if (order[i] == selectedProduct) slot = i;
-                float cx = dp(18) + (w - dp(36)) * (slot + 0.5f) / 5f;
-                float notch = dp(37), top = dp(9), r = dp(36);
+                float cx = w / 2f - dp(160) + dp(64) * (slot + 0.5f);
+                float notch = dp(43), top = dp(9), r = dp(36);
                 Path path = new Path();
                 path.moveTo(0, top + r);
                 path.quadTo(0, top, r, top);
@@ -628,10 +628,10 @@ public class PriceRankingActivity extends Activity {
         };
         FrameLayout.LayoutParams shapeLp = new FrameLayout.LayoutParams(-1, dp(70), Gravity.BOTTOM);
         shell.addView(navShape, shapeLp);
-        FrameLayout.LayoutParams barLp = new FrameLayout.LayoutParams(-1, dp(70), Gravity.BOTTOM);
+        FrameLayout.LayoutParams barLp = new FrameLayout.LayoutParams(dp(320), dp(70), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         shell.addView(navItems, barLp);
 
-        String[] symbols = {"✳", "G", "✦", "✧", "⚙"};
+        String[] symbols = {"GPT", "GPT", "✦", "✧", "⚙"};
         String[] descriptions = {"ChatGPT Plus", "ChatGPT Go", "Gemini Pro", "Gemini Plus", "设置"};
         int[] productIndex = {0, 1, 2, 3, 4};
         for (int i = 0; i < symbols.length; i++) {
@@ -641,17 +641,25 @@ public class PriceRankingActivity extends Activity {
             item.setOrientation(LinearLayout.VERTICAL);
             TextView icon = new TextView(this);
             icon.setText(symbols[i]);
-            icon.setTextSize(i == 1 ? 19 : 22);
+            icon.setTextSize(i < 2 ? 13 : 22);
+            icon.setTypeface(null, i < 2 ? Typeface.BOLD : Typeface.NORMAL);
             icon.setGravity(Gravity.CENTER);
             icon.setContentDescription(descriptions[i]);
             icon.setTextColor(Color.rgb(225, 227, 218));
+            if (i < 2) {
+                GradientDrawable markBg = new GradientDrawable();
+                markBg.setShape(GradientDrawable.OVAL);
+                markBg.setColor(Color.rgb(225, 248, 241));
+                icon.setTextColor(Color.rgb(16, 163, 127));
+                icon.setBackground(markBg);
+            }
             item.addView(icon, new LinearLayout.LayoutParams(-1, dp(42)));
             View dot = new View(this);
             item.addView(dot, new LinearLayout.LayoutParams(dp(4), dp(4)));
             item.setOnClickListener(v -> {
                 selectProduct(index, index >= selectedProduct ? 1 : -1);
             });
-            navItems.addView(item, new LinearLayout.LayoutParams(0, -1, 1));
+            navItems.addView(item, new LinearLayout.LayoutParams(dp(64), -1));
         }
 
         floatingActiveIcon = new TextView(this);
@@ -671,7 +679,7 @@ public class PriceRankingActivity extends Activity {
 
     private void renderBottomNavigation() {
         if (bottomNav == null || navItems == null || floatingActiveIcon == null) return;
-        String[] symbols = {"✳", "G", "✦", "✧", "⚙"};
+        String[] symbols = {"GPT", "GPT", "✦", "✧", "⚙"};
         int[] productIndex = {0, 1, 2, 3, 4};
         int selectedSlot = 0;
         for (int i = 0; i < navItems.getChildCount(); i++) {
@@ -687,10 +695,16 @@ public class PriceRankingActivity extends Activity {
         }
         String glyph = symbols[selectedSlot];
         floatingActiveIcon.setText(glyph);
+        if (targetSlot < 2) {
+            floatingActiveIcon.setTextSize(13);
+            floatingActiveIcon.setTextColor(Color.rgb(16, 163, 127));
+        } else {
+            floatingActiveIcon.setTextSize(25);
+        }
         final int targetSlot = selectedSlot;
         if (navShape != null) navShape.invalidate();
         floatingActiveIcon.post(() -> {
-            float centerX = dp(18) + (bottomNav.getWidth() - dp(36)) * (targetSlot + 0.5f) / 5f;
+            float centerX = bottomNav.getWidth() / 2f - dp(160) + dp(64) * (targetSlot + 0.5f);
             float targetX = centerX - bottomNav.getWidth() / 2f;
             // Keep the bubble at its previous horizontal position, then lift it into the new slot.
             floatingActiveIcon.animate().cancel();
