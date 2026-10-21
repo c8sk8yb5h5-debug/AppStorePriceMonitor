@@ -708,42 +708,30 @@ public class PriceRankingActivity extends Activity {
         item.setBackground(capsule);
 
         item.addView(cell(String.valueOf(row.rank), 0.55f, Gravity.CENTER, false, ink));
-        item.addView(cell(row.country, 1.30f, Gravity.START, false, ink));
+        TextView countryCell = cell((favorite ? "★ " : "☆ ") + row.country, 1.30f, Gravity.START, false, ink);
+        countryCell.setTextColor(favorite ? Color.rgb(39, 74, 40) : ink);
+        item.addView(countryCell);
         item.addView(cell(row.originalPrice, 1.65f, Gravity.CENTER, false, ink));
         item.addView(cell(row.cnyPrice, 1.0f, Gravity.CENTER, false, ink));
 
-        item.setOnTouchListener((view, event) -> {
-            switch (event.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                    rowSwipeDownX = event.getX();
-                    rowSwipeDownY = event.getY();
-                    rowSwipeTracking = false;
-                    return true;
-                case MotionEvent.ACTION_MOVE:
-                    float dx = event.getX() - rowSwipeDownX;
-                    float dy = event.getY() - rowSwipeDownY;
-                    if (Math.abs(dx) > dp(18) && Math.abs(dx) > Math.abs(dy) * 1.15f) {
-                        rowSwipeTracking = true;
-                        view.getParent().requestDisallowInterceptTouchEvent(true);
-                        return true;
-                    }
-                    return rowSwipeTracking;
-                case MotionEvent.ACTION_UP:
-                    float deltaX = event.getX() - rowSwipeDownX;
-                    if (rowSwipeTracking && Math.abs(deltaX) > dp(48)) {
-                        toggleFavoriteCountry(row.country);
-                        renderFavoriteRows(row.country);
-                    }
-                    boolean handled = rowSwipeTracking;
-                    rowSwipeTracking = false;
-                    view.getParent().requestDisallowInterceptTouchEvent(false);
-                    return handled;
-                case MotionEvent.ACTION_CANCEL:
-                    rowSwipeTracking = false;
-                    view.getParent().requestDisallowInterceptTouchEvent(false);
-                    return false;
-            }
-            return rowSwipeTracking;
+        // Tap to favorite: reliable in a nested scrolling layout.
+        item.setClickable(true);
+        item.setFocusable(true);
+        item.setOnClickListener(v -> {
+            toggleFavoriteCountry(row.country);
+            boolean nowFavorite = isFavoriteCountry(row.country);
+            renderFavoriteRows(row.country);
+            item.animate().cancel();
+            item.setScaleX(0.97f);
+            item.setScaleY(0.94f);
+            item.animate().scaleX(1.02f).scaleY(1.04f).setDuration(120)
+                    .setInterpolator(new android.view.animation.OvershootInterpolator(1.6f))
+                    .withEndAction(() -> item.animate().scaleX(1f).scaleY(1f).setDuration(160)
+                            .setInterpolator(new android.view.animation.DecelerateInterpolator()).start())
+                    .start();
+            Toast.makeText(PriceRankingActivity.this,
+                    nowFavorite ? "已收藏 " + row.country : "已取消收藏 " + row.country,
+                    Toast.LENGTH_SHORT).show();
         });
 
         LinearLayout wrapper = new LinearLayout(this);
@@ -782,8 +770,11 @@ public class PriceRankingActivity extends Activity {
             LinearLayout item = (LinearLayout) first;
             if (item.getChildCount() < 2) continue;
             TextView countryCell = (TextView) item.getChildAt(1);
-            if (!country.trim().equals(countryCell.getText().toString().trim())) continue;
+            String displayedCountry = countryCell.getText().toString().trim().replaceFirst("^[★☆]\\s*", "");
+            if (!country.trim().equals(displayedCountry)) continue;
             boolean favorite = isFavoriteCountry(country);
+            countryCell.setText((favorite ? "★ " : "☆ ") + country.trim());
+            countryCell.setTextColor(favorite ? Color.rgb(39, 74, 40) : ink);
             GradientDrawable capsule = new GradientDrawable();
             capsule.setColor(favorite ? Color.rgb(255, 220, 122) : Color.TRANSPARENT);
             capsule.setCornerRadius(dp(48));
