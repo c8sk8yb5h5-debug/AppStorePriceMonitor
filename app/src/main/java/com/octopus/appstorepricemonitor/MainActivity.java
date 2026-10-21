@@ -41,7 +41,6 @@ import org.json.JSONObject;
 import org.json.JSONArray;
 
 public class MainActivity extends Activity {
-    private EditText urlsInput;
     private EditText thresholdInput;
     private EditText rankingUrlInput;
     private TextView status;
@@ -244,12 +243,9 @@ public class MainActivity extends Activity {
     }
 
     private void saveSettings() {
-        String[] lines = urlsInput.getText().toString().split("\\r?\\n");
         JSONArray arr = new JSONArray();
-        for (String line : lines) {
-            String s = line.trim();
-            if (s.matches("https://appstoreprice\\.org/zh/apps/[0-9]+/?") && !contains(arr, s)) arr.put(s);
-        }
+        arr.put("https://appstoreprice.org/zh/apps/6448311069");
+        arr.put("https://appstoreprice.org/zh/apps/6477489729");
         if (arr.length() == 0) { Toast.makeText(this, "请至少填写一个有效的 AppStorePrice.org 应用详情链接", Toast.LENGTH_LONG).show(); return; }
         float threshold = 5f;
         try { threshold = Float.parseFloat(thresholdInput.getText().toString().trim()); } catch (Exception ignored) {}
