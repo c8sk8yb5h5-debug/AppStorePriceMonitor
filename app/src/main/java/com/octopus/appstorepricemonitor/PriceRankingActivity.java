@@ -367,59 +367,12 @@ public class PriceRankingActivity extends Activity {
         float saved = getSharedPreferences(PriceMonitorWorker.PREFS, MODE_PRIVATE)
                 .getFloat(PriceMonitorWorker.THRESHOLD_KEY, 5f);
         int initialThreshold = Math.max(1, Math.min(100, Math.round(saved)));
-        LinearLayout thresholdRow = new LinearLayout(this);
-        thresholdRow.setOrientation(LinearLayout.HORIZONTAL);
-        thresholdRow.setGravity(Gravity.CENTER_VERTICAL);
-        thresholdRow.setPadding(dp(14), 0, dp(10), 0);
-        GradientDrawable thresholdPill = new GradientDrawable();
-        thresholdPill.setColor(Color.argb(179, 255, 255, 255));
-        thresholdPill.setCornerRadius(dp(48));
-        thresholdPill.setStroke(dp(1), Color.argb(65, 39, 55, 35));
-        thresholdRow.setBackground(thresholdPill);
-        thresholdRow.setElevation(dp(4));
-
-        TextView thresholdValue = new TextView(this);
-        thresholdValue.setText(initialThreshold + "%");
-        thresholdValue.setTextSize(18);
-        thresholdValue.setTypeface(null, Typeface.BOLD);
-        thresholdValue.setTextColor(ink);
-        thresholdValue.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-        thresholdRow.addView(thresholdValue, new LinearLayout.LayoutParams(dp(54), dp(48)));
-
-        android.widget.SeekBar thresholdSlider = new android.widget.SeekBar(this);
-        thresholdSlider.setMax(99);
-        thresholdSlider.setProgress(initialThreshold - 1);
-        thresholdSlider.setContentDescription("拖动设置价格变动百分比");
-        thresholdSlider.setProgressTintList(android.content.res.ColorStateList.valueOf(Color.rgb(40, 90, 45)));
-        thresholdSlider.setThumbTintList(android.content.res.ColorStateList.valueOf(Color.rgb(40, 90, 45)));
-        thresholdSlider.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.argb(65, 39, 55, 35)));
-        thresholdRow.addView(thresholdSlider, new LinearLayout.LayoutParams(0, dp(52), 1));
-        thresholdSlider.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
-                thresholdValue.setText((progress + 1) + "%");
-                if (fromUser) {
-                    thresholdValue.animate().cancel();
-                    thresholdValue.setScaleX(1f);
-                    thresholdValue.setScaleY(1f);
-                    thresholdValue.animate().scaleX(1.12f).scaleY(1.12f).setDuration(80)
-                            .withEndAction(() -> thresholdValue.animate().scaleX(1f).scaleY(1f).setDuration(150)
-                                    .setInterpolator(new android.view.animation.OvershootInterpolator(1.5f)).start())
-                            .start();
-                }
-            }
-            @Override public void onStartTrackingTouch(android.widget.SeekBar seekBar) {
-                thresholdRow.animate().scaleX(1.012f).scaleY(1.025f).setDuration(100).start();
-            }
-            @Override public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
-                thresholdRow.animate().scaleX(1f).scaleY(1f).setDuration(160)
-                        .setInterpolator(new android.view.animation.OvershootInterpolator(1.3f)).start();
-            }
-        });
-        monitorCard.addView(thresholdRow);
+        LiquidThresholdView thresholdLiquid = new LiquidThresholdView(this, initialThreshold);
+        thresholdLiquid.setElevation(dp(4));
+        monitorCard.addView(thresholdLiquid, new LinearLayout.LayoutParams(-1, dp(54)));
 
         addSettingsButton(monitorCard, "保存并启用每日监控", true, () -> {
-            float value;
-            value = thresholdSlider.getProgress() + 1;
+            float value = thresholdLiquid.getValue();
             if (value < 1 || value > 100) {
                 android.widget.Toast.makeText(this, "阈值请设置为 1 到 100", android.widget.Toast.LENGTH_SHORT).show();
                 return;
@@ -830,6 +783,7 @@ public class PriceRankingActivity extends Activity {
                 icon.setText(symbols[i]);
                 icon.setTextSize(22);
                 icon.setGravity(Gravity.CENTER);
+                icon.setIncludeFontPadding(false);
                 icon.setTextColor(Color.rgb(225, 227, 218));
             }
             icon.setContentDescription(descriptions[i]);
@@ -1013,7 +967,7 @@ public class PriceRankingActivity extends Activity {
             int save = canvas.save();
             canvas.translate(getWidth() / 2f, getHeight() / 2f);
             float scale = getResources().getDisplayMetrics().density;
-            canvas.scale(0.92f, 0.92f);
+            canvas.scale(0.76f, 0.76f);
             iconPaint.setColor(Color.rgb(16, 163, 127));
             iconPaint.setStrokeJoin(Paint.Join.ROUND);
             iconPaint.setStrokeCap(Paint.Cap.ROUND);
