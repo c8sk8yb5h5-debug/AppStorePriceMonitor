@@ -101,13 +101,14 @@ public class PriceRankingActivity extends Activity {
                 path.quadTo(0, 0, radius, 0);
                 path.lineTo(w - radius, 0);
                 path.quadTo(w, 0, w, radius);
-                path.lineTo(w, h - dp(30));
-                path.quadTo(w, h, w - dp(30), h);
-                path.lineTo(cx + half, h);
-                path.cubicTo(cx + dp(22), h, cx + dp(26), h + bulge, cx, h + bulge);
-                path.cubicTo(cx - dp(26), h + bulge, cx - dp(22), h, cx - half, h);
-                path.lineTo(dp(30), h);
-                path.quadTo(0, h, 0, h - dp(30));
+                float baseY = h - bulge;
+                path.lineTo(w, baseY - dp(30));
+                path.quadTo(w, baseY, w - dp(30), baseY);
+                path.lineTo(cx + half, baseY);
+                path.cubicTo(cx + dp(22), baseY, cx + dp(26), h, cx, h);
+                path.cubicTo(cx - dp(26), h, cx - dp(22), baseY, cx - half, baseY);
+                path.lineTo(dp(30), baseY);
+                path.quadTo(0, baseY, 0, baseY - dp(30));
                 path.close();
                 paint.setColor(Color.rgb(157, 174, 111));
                 canvas.drawPath(path, paint);
@@ -117,7 +118,7 @@ public class PriceRankingActivity extends Activity {
             @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
         });
         FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(-1, -1);
-        cardLp.bottomMargin = dp(52);
+        cardLp.bottomMargin = dp(5);
         contentFrame.addView(card, cardLp);
 
         currentHeading = new TextView(this);
